@@ -1,10 +1,18 @@
 use crossterm::{
     execute,
-    terminal::{EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
-use std::io::{self, Write};
-use std::thread::sleep;
-use std::time::{Duration, Instant};
+use ratatui::{
+    Terminal,
+    backend::CrosstermBackend,
+    prelude::*,
+    widgets::{Block, Paragraph},
+};
+use std::{
+    io,
+    thread::sleep,
+    time::{Duration, Instant},
+};
 
 struct FocusTime {
     start: Instant,
@@ -13,21 +21,46 @@ struct FocusTime {
 }
 
 fn main() -> io::Result<()> {
+    enable_raw_mode()?;
     execute!(io::stdout(), EnterAlternateScreen)?;
 
-    loop {
-        let app = FocusTime {
-            start: Instant::now(),
-            duration: Duration::new(30, 0),
-            quit: false,
-        };
-        let elapsed = app.start.elapsed();
-        println!("Elapsed: {:?}", elapsed);
+    let mut app = FocusTime {
+        start: Instant::now(),
+        duration: Duration::new(5, 0),
+        quit: false,
+    };
 
-        sleep(Duration::from_millis(100));
-        break; // For now
+    let backend = CrosstermBackend::new(io::stdout());
+    let mut terminal = Terminal::new(backend)?;
+
+    loop {
+        let elapsed = app.start.elapsed();
+        let remaining = app.duration.saturating_sub(elapsed);
+
+        terminal.draw(|f| {
+            let chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([Constraint::Min(1), Constraint::Length(3)])
+                .split(f.size());
+
+            let color_field = Block::default().style(Style::default().bg(Color::Green));
+            f.render_widget(color_field, chunks[0]);
+
+            let clock = Paragraph::new(format!("{:?} s left", remaining.as_secs()))
+                .style(Style::default().fg(Color::White).bg(Color::Black))
+                .alignment(Alignment::Center);
+            f.render_widget(clock, chunks[1]);
+        })?;
+
+        if remaining.is_zero() {
+            app.quit = true;
+        }
+        if app.quit {
+            break;
+        }
     }
 
+    disable_raw_mode()?;
     execute!(io::stdout(), LeaveAlternateScreen)?;
     Ok(())
 }
