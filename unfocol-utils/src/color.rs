@@ -1,5 +1,29 @@
 use serde::Deserialize;
 
+pub fn extract_normal_colors(theme: &Theme) -> NormalColorsRgb {
+    NormalColorsRgb {
+        black: hex_to_rgb(&theme.colors.normal.black),
+        red: hex_to_rgb(&theme.colors.normal.red),
+        green: hex_to_rgb(&theme.colors.normal.green),
+        yellow: hex_to_rgb(&theme.colors.normal.yellow),
+        blue: hex_to_rgb(&theme.colors.normal.blue),
+        magenta: hex_to_rgb(&theme.colors.normal.magenta),
+        cyan: hex_to_rgb(&theme.colors.normal.cyan),
+        white: hex_to_rgb(&theme.colors.normal.white),
+    }
+}
+
+pub struct NormalColorsRgb {
+    pub black: (u8, u8, u8),
+    pub red: (u8, u8, u8),
+    pub green: (u8, u8, u8),
+    pub yellow: (u8, u8, u8),
+    pub blue: (u8, u8, u8),
+    pub magenta: (u8, u8, u8),
+    pub cyan: (u8, u8, u8),
+    pub white: (u8, u8, u8),
+}
+
 /// Structs for deserializing `[colors.normal]`
 #[derive(Deserialize)]
 pub struct NormalColors {

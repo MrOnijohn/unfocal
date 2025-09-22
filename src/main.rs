@@ -3,8 +3,8 @@ use crossterm::{
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
-
 use dirs;
+use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use ratatui::{
     Terminal,
     backend::CrosstermBackend,
@@ -13,35 +13,45 @@ use ratatui::{
 };
 use std::{
     io,
+    sync::mpsc,
     time::{Duration, Instant},
 };
-
-use unfocol_utils::color::{gradient_color, hex_to_rgb, load_theme_or_default};
+use unfocol_utils::color::{extract_normal_colors, gradient_color, load_theme_or_default};
 
 mod app;
 use app::FocusTime;
 
-fn main() -> io::Result<()> {
+fn main() -> anyhow::Result<()> {
+    let mut last_reload = Instant::now();
+
     let mut app = FocusTime {
         start: Instant::now(),
-        duration: Duration::from_secs(60),
+        duration: Duration::from_secs(30 * 60), // Default 30 * 60 seconds, ie 30 minutes
         quit: false,
         paused: true,
         paused_at: Some(Duration::ZERO),
     };
+
     let path = dirs::home_dir()
         .unwrap()
         .join(".config/omarchy/current/theme/alacritty.toml"); // Get color values from the theme
 
     // Set default colors if theme colors aren't found
-    let theme = load_theme_or_default(&path);
-    let cyan = hex_to_rgb(&theme.colors.normal.cyan);
-    let green = hex_to_rgb(&theme.colors.normal.green);
-    let yellow = hex_to_rgb(&theme.colors.normal.yellow);
-    let red = hex_to_rgb(&theme.colors.normal.red);
-    let black = hex_to_rgb(&theme.colors.normal.black);
+    let mut theme = load_theme_or_default(&path);
+    let mut colors = extract_normal_colors(&theme);
 
-    let stops = [(0.0, green), (0.5, yellow), (5.0 / 6.0, red), (1.0, black)];
+    let stops = [
+        (0.0, colors.green),
+        (0.5, colors.yellow),
+        (5.0 / 6.0, colors.red),
+        (1.0, colors.black),
+    ];
+
+    // Set up watching for theme changes
+    let parent = dirs::home_dir().unwrap().join(".config/omarchy/current");
+    let (tx, rx) = mpsc::channel();
+    let mut watcher: RecommendedWatcher = Watcher::new(tx, notify::Config::default())?;
+    watcher.watch(&parent, RecursiveMode::NonRecursive)?;
 
     enable_raw_mode()?;
     execute!(io::stdout(), EnterAlternateScreen)?;
@@ -50,6 +60,7 @@ fn main() -> io::Result<()> {
     let mut terminal = Terminal::new(backend)?;
 
     loop {
+        // Check for keyboard events
         if event::poll(Duration::from_millis(100))? {
             if let Event::Key(key) = event::read()? {
                 match key.code {
@@ -70,6 +81,21 @@ fn main() -> io::Result<()> {
                 }
             }
         }
+
+        // Check for updated theme
+        if let Ok(Ok(_event)) = rx.try_recv() {
+            let now = Instant::now();
+            // Wait 200 ms after change to reload theme
+            if now.duration_since(last_reload) > Duration::from_millis(200) {
+                // reload theme file
+                let new_theme = load_theme_or_default(&path);
+                theme = new_theme;
+                // re-extract RGBs
+                colors = extract_normal_colors(&theme);
+                last_reload = now;
+            }
+        }
+
         let elapsed = if app.paused {
             app.paused_at.unwrap_or(Duration::ZERO)
         } else {
@@ -87,7 +113,7 @@ fn main() -> io::Result<()> {
                 .constraints([Constraint::Min(1), Constraint::Length(3)])
                 .split(f.area());
             let color = if app.paused {
-                Color::Rgb(cyan.0, cyan.1, cyan.2)
+                Color::Rgb(colors.cyan.0, colors.cyan.1, colors.cyan.2)
             } else {
                 let ratio = (elapsed.as_secs_f32() / app.duration.as_secs_f32()).min(1.0);
                 let rgb = gradient_color(ratio, &stops);
@@ -107,10 +133,30 @@ fn main() -> io::Result<()> {
                     Constraint::Length(1), // bottom padding
                 ])
                 .split(clock_area);
-            let clock = Paragraph::new(formatted_time)
-                .style(Style::default().fg(Color::White).bg(Color::Black))
+
+            let pad_top = Block::default().style(Style::default().bg(Color::Rgb(
+                colors.black.0,
+                colors.black.1,
+                colors.black.2,
+            )));
+            f.render_widget(pad_top, inner_chunks[0]);
+
+            let padded_text = format!("{:^7} ", formatted_time);
+
+            let clock = Paragraph::new(padded_text)
+                .style(
+                    Style::default()
+                        .fg(Color::Rgb(colors.white.0, colors.white.1, colors.white.2))
+                        .bg(Color::Rgb(colors.black.0, colors.black.1, colors.black.2)),
+                )
                 .alignment(Alignment::Center);
             f.render_widget(clock, inner_chunks[1]);
+            let pad_bottom = Block::default().style(Style::default().bg(Color::Rgb(
+                colors.black.0,
+                colors.black.1,
+                colors.black.2,
+            )));
+            f.render_widget(pad_bottom, inner_chunks[2]);
         })?;
 
         if remaining.is_zero() {
