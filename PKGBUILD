@@ -25,6 +25,9 @@ package() {
   # binary
   install -Dm755 "target/release/unfocol" "$pkgdir/usr/bin/unfocol"
 
+  # license
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+
   # .desktop entry
   install -Dm644 "$srcdir/unfocol.desktop" \
     "$pkgdir/usr/share/applications/unfocol.desktop"
