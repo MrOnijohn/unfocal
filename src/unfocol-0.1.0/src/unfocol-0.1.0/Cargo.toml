@@ -1,0 +1,12 @@
+[package]
+name = "unfocol"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+unfocol-utils = { path = "unfocol-utils" }
+crossterm = "0.29"
+ratatui = "0.29.0"
+dirs = "6.0.0"
+notify = "8.2.0"
+anyhow = "1.0.100"
