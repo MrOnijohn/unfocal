@@ -1,1 +1,15 @@
-/target
+# Rust build output
+/target/
+
+# Cargo lock for libraries (keep it if you're building an app)
+# Cargo.lock
+
+# Build artifacts from makepkg or other packaging tools
+/src/unfocol-*/
+*.pkg.tar.zst
+*.tar.gz
+*.tar.zst
+
+# Misc
+.DS_Store
+
