@@ -3,16 +3,16 @@
 pkgname=unfocol
 pkgver=0.1.0
 pkgrel=1
-pkgdesc="Unfocused Focus TUI timer that uses colors from your terminal theme"
+pkgdesc="Unfocused Focus TUI app using colors"
 arch=('x86_64')
 url="https://github.com/MrOnijohn/unfocol"
 license=('MIT')
-depends=()            # no runtime deps beyond glibc, which is implicit
+depends=('glibc')  # runtime deps, add 'alacritty' or 'ghostty' if you want to enforce a terminal
 makedepends=('cargo')
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz"
-        "unfocol.desktop")
-sha256sums=('6c46245612d6e8a48db2b7c583c412983c1ec389891ef2525c9896366cdfe67b'
-            '30c0fa6dace499918159b534510488cf1ec1b22d5502071c16fe92ddb2ff8f85')
+        "unfocol.desktop"
+        "unfocol.png")
+sha256sums=('SKIP' 'SKIP' 'SKIP')
 
 build() {
   cd "$srcdir/$pkgname-$pkgver"
@@ -29,10 +29,7 @@ package() {
   install -Dm644 "$srcdir/unfocol.desktop" \
     "$pkgdir/usr/share/applications/unfocol.desktop"
 
-  # icons (from assets/icons/)
-  for icon in assets/icons/icon-*.png; do
-    size=$(basename "$icon" | cut -d'-' -f2 | cut -dx -f1)
-    install -Dm644 "$icon" \
-      "$pkgdir/usr/share/icons/hicolor/${size}x${size}/apps/unfocol.png"
-  done
+  # icon
+  install -Dm644 "$srcdir/unfocol.png" \
+    "$pkgdir/usr/share/icons/hicolor/64x64/apps/unfocol.png"
 }
