@@ -3,6 +3,10 @@
 **unfocol** (UNfocused FOcus using COLors) is a small TUI focus timer.  
 It displays a block of color that changes gradually over time, using the active terminal theme’s colors. The idea is to give a peripheral sense of time passing without having to look at a countdown.
 
+## Usage
+
+Start it. Make it a small strip on either the right or left side of the screen and let what you're working on fill the rest of the screen. Space starts/pauses the timer (at the moment only 30 minutes unless you change it in the source code before building), r resets, q quits. The color fades between what your theme calls green to yellow at 15 minutes left, to red at 5 minutes left, and then to black before turning cyan again when the time is up. There is a small clock, but the point is to not look at it, but instead get a feeling for how long is left of the focus session from the color.
+
 At present, **unfocol** is primarily designed for Omarchy (Arch + Hyprland) users, and is meant to integrate with the beautiful themes that distro provides. It should work on any Arch-based system with a terminal emulator such as Alacritty or Ghostty. On other setups, you may need to adapt configuration paths or theme handling, or change the colors to something you prefer in the source code before building.
 
 ## Installation
