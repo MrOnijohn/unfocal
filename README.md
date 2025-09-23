@@ -7,12 +7,11 @@ It displays a block of color that changes gradually over time, using the active 
 
 Start it. Make it a small strip on either the right or left side of the screen and let what you're working on fill the rest of the screen. Space starts/pauses the timer (at the moment only 30 minutes unless you change it in the source code before building), r resets, q quits. The color fades between what *your theme* calls green to yellow at 15 minutes left, to red at 5 minutes left, and then to black before turning cyan again when the time is up. There is a small clock, but the point is to not look at it, but instead get a feeling for how long is left of the focus session from the color.
 
-Here are some screenshots of it running in different themes:
+Here are some screenshots of it running in different themes with a compressed version of how the transitions should look underneath:
 | Gruvbox | Catppuccin | Osaka Jade |
 |---------|------------|------------|
 | <img src="docs/img/unfocol-gruvbox.png" width="250"/> | <img src="docs/img/unfocol-catppuccin.png" width="250"> | <img src="docs/img/unfocol-osaka_jade.png" width="250"> |
-
-I'll try to generate illustrations of the color transitions too, since that's more interesting than static images, but haven't decided on the best way to do this yet.
+| <img src="docs/img/unfocol-gruvbox.gif"> | <img src="docs/img/unfocol-catppuccin.gif"> | <img src="docs/img/unfocol-osaka_jade.gif"> |
 
 At present, **unfocol** is primarily designed for Omarchy (Arch + Hyprland) users, and is meant to integrate with the beautiful themes that distro provides. It should work on any Arch-based system with a terminal emulator such as Alacritty or Ghostty. On other setups, you may need to adapt configuration paths or theme handling, or change the colors to something you prefer in the source code before building.
 
