@@ -54,7 +54,9 @@ fn main() -> anyhow::Result<()> {
     ];
 
     // Set up watching for theme changes
-    let parent = dirs::home_dir().unwrap().join(".config/omarchy/current");
+    let parent = dirs::home_dir()
+        .map(|h| h.join(".config/omarchy/current"))
+        .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "HOME not set"))?;
     let (tx, rx) = mpsc::channel();
     let mut watcher: RecommendedWatcher = Watcher::new(tx, notify::Config::default())?;
     watcher.watch(&parent, RecursiveMode::NonRecursive)?;
