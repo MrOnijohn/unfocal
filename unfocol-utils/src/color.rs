@@ -67,11 +67,11 @@ pub fn load_theme_or_default(path: &std::path::Path) -> Theme {
             normal: NormalColors {
                 black: "#000000".into(),
                 red: "#FF0000".into(),
-                green: "#00FF00".into(),
+                green: "#228b22".into(), // Forest Green
                 yellow: "#FFFF00".into(),
                 blue: "#0000FF".into(),
                 magenta: "#FF00FF".into(),
-                cyan: "#00FFFF".into(),
+                cyan: "#40e0d0".into(), // Turqoise
                 white: "#FFFFFF".into(),
             },
         },

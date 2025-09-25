@@ -21,6 +21,8 @@ use unfocol_utils::color::{extract_normal_colors, gradient_color, load_theme_or_
 mod app;
 use app::FocusTime;
 
+use crate::app::TermGuard;
+
 fn main() -> anyhow::Result<()> {
     let mut last_reload = Instant::now();
 
@@ -32,9 +34,13 @@ fn main() -> anyhow::Result<()> {
         paused_at: Some(Duration::ZERO),
     };
 
-    let path = dirs::home_dir()
-        .unwrap()
-        .join(".config/omarchy/current/theme/alacritty.toml"); // Get color values from the theme
+    let home = dirs::home_dir().ok_or_else(|| {
+        io::Error::new(
+            io::ErrorKind::NotFound,
+            "HOME not set; cannot locate theme directory",
+        )
+    })?;
+    let path = home.join(".config/omarchy/current/theme/alacritty.toml"); // Get color values from the theme
 
     // Set default colors if theme colors aren't found
     let mut theme = load_theme_or_default(&path);
@@ -55,13 +61,14 @@ fn main() -> anyhow::Result<()> {
 
     enable_raw_mode()?;
     execute!(io::stdout(), EnterAlternateScreen)?;
+    let _term_guard = TermGuard;
 
     let backend = CrosstermBackend::new(io::stdout());
     let mut terminal = Terminal::new(backend)?;
 
     loop {
         // Check for keyboard events
-        if event::poll(Duration::from_millis(100))? {
+        if event::poll(Duration::from_millis(200))? {
             if let Event::Key(key) = event::read()? {
                 match key.code {
                     KeyCode::Char('q') => app.quit = true,
@@ -141,7 +148,7 @@ fn main() -> anyhow::Result<()> {
             )));
             f.render_widget(pad_top, inner_chunks[0]);
 
-            let padded_text = format!("{:^7} ", formatted_time);
+            let padded_text = format!("{:^5} ", formatted_time);
 
             let clock = Paragraph::new(padded_text)
                 .style(

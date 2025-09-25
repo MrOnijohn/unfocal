@@ -31,3 +31,11 @@ impl FocusTime {
         self.paused_at = Some(Duration::ZERO);
     }
 }
+
+pub struct TermGuard;
+impl Drop for TermGuard {
+    fn drop(&mut self) {
+        let _ = crossterm::terminal::disable_raw_mode();
+        let _ = crossterm::execute!(std::io::stdout(), crossterm::terminal::LeaveAlternateScreen);
+    }
+}
