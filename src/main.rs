@@ -149,17 +149,25 @@ fn main() -> anyhow::Result<()> {
                 colors.black.2,
             )));
             f.render_widget(pad_top, inner_chunks[0]);
+            
+            let clock_row = Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints([
+                    Constraint::Min(0), // left filler
+                    Constraint::Min(5), // clock
+                    Constraint::Min(0)  // right filler
+                ])
+                .split(inner_chunks[1]);
 
-            let padded_text = format!("{:^5} ", formatted_time);
-
-            let clock = Paragraph::new(padded_text)
+            let clock = Paragraph::new(formatted_time.clone())
                 .style(
                     Style::default()
                         .fg(Color::Rgb(colors.white.0, colors.white.1, colors.white.2))
                         .bg(Color::Rgb(colors.black.0, colors.black.1, colors.black.2)),
                 )
                 .alignment(Alignment::Center);
-            f.render_widget(clock, inner_chunks[1]);
+            f.render_widget(clock, clock_row[1]);
+
             let pad_bottom = Block::default().style(Style::default().bg(Color::Rgb(
                 colors.black.0,
                 colors.black.1,
