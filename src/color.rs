@@ -1,3 +1,5 @@
+use crate::config::RawTheme;
+
 pub const IDLE: Color = Color {
     r: 0,
     g: 204,
@@ -37,7 +39,7 @@ pub struct Color {
     pub b: u8,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Stop {
     color: Color,
     progress: f32,
@@ -49,12 +51,12 @@ pub enum InterpolationMethod {
     Oklab,
 }
 
-pub struct Transition {
+pub struct Theme {
     stops: Vec<Stop>,
     interpolation_method: InterpolationMethod,
 }
 
-impl Transition {
+impl Theme {
     pub fn new(stops: Vec<Stop>, interpolation_method: InterpolationMethod) -> Self {
         Self {
             stops: stops,
@@ -63,130 +65,160 @@ impl Transition {
     }
 
     pub fn current_color(&self, t: f32) -> Color {
-        todo!();
+        match self.interpolation_method {
+            InterpolationMethod::Lerp => Self::lerp(&self, t),
+            _ => todo!(),
+        }
     }
 
     fn lerp(&self, t: f32) -> Color {
+        debug_assert!(t < 1.0);
+        for i in 0..self.stops.len() - 1 {
+            if self.stops[i].progress <= t && t < self.stops[i + 1].progress {
+                let ratio: f32 = (t - self.stops[i].progress)
+                    / (self.stops[i + 1].progress - self.stops[i].progress);
+                let r: f32 = self.stops[i].color.r as f32
+                    + ((self.stops[i + 1].color.r as f32 - self.stops[i].color.r as f32) * ratio);
+                let g: f32 = self.stops[i].color.g as f32
+                    + ((self.stops[i + 1].color.g as f32 - self.stops[i].color.g as f32) * ratio);
+                let b: f32 = self.stops[i].color.b as f32
+                    + ((self.stops[i + 1].color.b as f32 - self.stops[i].color.b as f32) * ratio);
+                let lerped_color = Color {
+                    r: r.round() as u8,
+                    g: g.round() as u8,
+                    b: b.round() as u8,
+                };
+                return lerped_color;
+            }
+        }
+        // Should never happen, since t is clamped
+        panic!(
+            "lerp: no segment found for t={t:.4}, stops={:?}",
+            self.stops
+        );
+    }
+}
+
+impl From<RawTheme> for Theme {
+    fn from(value: RawTheme) -> Self {
         todo!();
     }
 }
 
 #[cfg(test)]
-use super::*;
+mod tests {
+    use super::*;
 
-#[test]
-fn idle_is_correctly_defined() {
-    let idle = Color {
-        r: 0,
-        g: 204,
-        b: 204,
-    };
+    #[test]
+    fn idle_is_correctly_defined() {
+        let idle = Color {
+            r: 0,
+            g: 204,
+            b: 204,
+        };
 
-    assert_eq!(idle, IDLE);
-}
+        assert_eq!(idle, IDLE);
+    }
 
-#[test]
-fn stop_0_is_correctly_defined() {
-    let stop_0 = Color { r: 0, g: 204, b: 0 };
+    #[test]
+    fn stop_0_is_correctly_defined() {
+        let stop_0 = Color { r: 0, g: 204, b: 0 };
 
-    assert_eq!(stop_0, STOP_0);
-}
+        assert_eq!(stop_0, STOP_0);
+    }
 
-#[test]
-fn stop_1_is_correctly_defined() {
-    let stop_1 = Color {
-        r: 204,
-        g: 204,
-        b: 0,
-    };
+    #[test]
+    fn stop_1_is_correctly_defined() {
+        let stop_1 = Color {
+            r: 204,
+            g: 204,
+            b: 0,
+        };
 
-    assert_eq!(stop_1, STOP_1);
-}
+        assert_eq!(stop_1, STOP_1);
+    }
 
-#[test]
-fn stop_2_is_correctly_defined() {
-    let stop_2 = Color { r: 204, g: 0, b: 0 };
+    #[test]
+    fn stop_2_is_correctly_defined() {
+        let stop_2 = Color { r: 204, g: 0, b: 0 };
 
-    assert_eq!(stop_2, STOP_2);
-}
+        assert_eq!(stop_2, STOP_2);
+    }
 
-#[test]
-fn stop_3_is_correctly_defined() {
-    let stop_3 = Color { r: 0, g: 0, b: 0 };
+    #[test]
+    fn stop_3_is_correctly_defined() {
+        let stop_3 = Color { r: 0, g: 0, b: 0 };
 
-    assert_eq!(stop_3, STOP_3);
-}
+        assert_eq!(stop_3, STOP_3);
+    }
 
-#[test]
-fn current_color_is_stop_0_at_t_zero() {
-    let transition = Transition::new(DEFAULT_STOPS.to_vec(), InterpolationMethod::Lerp);
-    let t: f32 = 0.0;
-    let stop_0 = transition.current_color(t);
+    #[test]
+    fn current_color_is_stop_0_at_t_0() {
+        let theme = Theme::new(DEFAULT_STOPS.to_vec(), InterpolationMethod::Lerp);
+        let t: f32 = 0.0;
+        let stop_0 = theme.current_color(t);
 
-    assert_eq!(stop_0, STOP_0);
-}
+        assert_eq!(stop_0, STOP_0);
+    }
 
-#[test]
-fn current_color_is_stop_1_at_t_zero_point_five() {
-    let transition = Transition::new(DEFAULT_STOPS.to_vec(), InterpolationMethod::Lerp);
-    let t: f32 = 0.5;
-    let stop_1 = transition.current_color(t);
+    #[test]
+    fn current_color_is_stop_1_at_t_0_point_5() {
+        let theme = Theme::new(DEFAULT_STOPS.to_vec(), InterpolationMethod::Lerp);
+        let t: f32 = 0.5;
+        let stop_1 = theme.current_color(t);
 
-    assert_eq!(stop_1, STOP_1);
-}
+        assert_eq!(stop_1, STOP_1);
+    }
 
-#[test]
-fn current_color_is_stop_2_at_t_zero_point_eight_three_three_three() {
-    let transition = Transition::new(DEFAULT_STOPS.to_vec(), InterpolationMethod::Lerp);
-    let t: f32 = 0.8333;
-    let stop_2 = transition.current_color(t);
+    #[test]
+    fn current_color_is_stop_2_at_t_0_point_8_3_3() {
+        let theme = Theme::new(DEFAULT_STOPS.to_vec(), InterpolationMethod::Lerp);
+        let t: f32 = 0.833;
+        let stop_2 = theme.current_color(t);
 
-    assert_eq!(stop_2, STOP_2);
-}
+        assert_eq!(stop_2, STOP_2);
+    }
 
-#[test]
-fn current_color_is_stop_3_at_t_one_point_zero() {
-    let transition = Transition::new(DEFAULT_STOPS.to_vec(), InterpolationMethod::Lerp);
-    let t: f32 = 1.0;
-    let stop_3 = transition.current_color(t);
+    #[test]
+    fn current_color_is_correct_at_t_0_point_25() {
+        let theme = Theme::new(DEFAULT_STOPS.to_vec(), InterpolationMethod::Lerp);
+        let t: f32 = 0.25;
+        let color = theme.current_color(t);
+        let correct_color = Color {
+            r: 102,
+            g: 204,
+            b: 0,
+        };
 
-    assert_eq!(stop_3, STOP_3);
-}
+        assert_eq!(color, correct_color);
+    }
 
-#[test]
-fn current_color_is_correct_at_t_zero_point_twentyfive() {
-    let transition = Transition::new(DEFAULT_STOPS.to_vec(), InterpolationMethod::Lerp);
-    let t: f32 = 0.25;
-    let color = transition.current_color(t);
-    let correct_color = Color {
-        r: 102,
-        g: 204,
-        b: 0,
-    };
+    #[test]
+    fn current_color_is_correct_at_t_0_point_6_6_6() {
+        let theme = Theme::new(DEFAULT_STOPS.to_vec(), InterpolationMethod::Lerp);
+        let t: f32 = 0.666;
+        let color = theme.current_color(t);
+        let correct_color = Color {
+            r: 204,
+            g: 102,
+            b: 0,
+        };
 
-    assert_eq!(color, correct_color);
-}
+        assert_eq!(color, correct_color);
+    }
 
-#[test]
-fn current_color_is_correct_at_t_zero_point_six_six_six_six() {
-    let transition = Transition::new(DEFAULT_STOPS.to_vec(), InterpolationMethod::Lerp);
-    let t: f32 = 0.6666;
-    let color = transition.current_color(t);
-    let correct_color = Color {
-        r: 204,
-        g: 102,
-        b: 0,
-    };
+    #[test]
+    fn current_color_is_correct_at_t_0_point_9_1_7() {
+        let theme = Theme::new(DEFAULT_STOPS.to_vec(), InterpolationMethod::Lerp);
+        let t: f32 = 0.917;
+        let color = theme.current_color(t);
+        let correct_color = Color { r: 102, g: 0, b: 0 };
 
-    assert_eq!(color, correct_color);
-}
+        assert_eq!(color, correct_color);
+    }
 
-#[test]
-fn current_color_is_correct_at_t_zero_point_nine_one_six_seven() {
-    let transition = Transition::new(DEFAULT_STOPS.to_vec(), InterpolationMethod::Lerp);
-    let t: f32 = 0.9167;
-    let color = transition.current_color(t);
-    let correct_color = Color { r: 102, g: 0, b: 0 };
-
-    assert_eq!(color, correct_color);
+    #[test]
+    fn default_theme_from_default_raw_theme_works() {
+        todo!();
+    }
 }

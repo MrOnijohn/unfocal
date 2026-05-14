@@ -9,7 +9,7 @@ fn main() -> eframe::Result {
         ..Default::default()
     };
     eframe::run_native(
-        "My egui App",
+        "Unfocol",
         options,
         Box::new(|cc| Ok(Box::<Unfocol>::default())),
     )
