@@ -17,13 +17,13 @@ pub enum SessionState {
 }
 
 impl Timer<fn() -> Instant> {
-    fn new(focus_time: Duration) -> Self {
+    fn new(focus_time_in_minutes: u32) -> Self {
         Self {
             clock: Instant::now,
             state: SessionState::Idle {
-                remaining_time: focus_time,
+                remaining_time: Duration::from_mins(focus_time_in_minutes.into()),
             },
-            focus_time: focus_time,
+            focus_time: Duration::from_mins(focus_time_in_minutes.into()),
         }
     }
 }

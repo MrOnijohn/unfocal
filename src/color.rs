@@ -1,5 +1,3 @@
-use crate::config::RawTheme;
-
 pub const IDLE: Color = Color {
     r: 0,
     g: 204,
@@ -96,12 +94,6 @@ impl Theme {
             "lerp: no segment found for t={t:.4}, stops={:?}",
             self.stops
         );
-    }
-}
-
-impl From<RawTheme> for Theme {
-    fn from(value: RawTheme) -> Self {
-        todo!();
     }
 }
 
