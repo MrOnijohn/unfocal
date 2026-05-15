@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+anyhow = "1.0.102"
+csscolorparser = "0.8.3"
 directories = "6.0.0"
 eframe = "0.34.2"
 egui_extras = "0.34.2"

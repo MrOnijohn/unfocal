@@ -22,7 +22,7 @@ pub const DEFAULT_STOPS: &[Stop] = &[
     },
     Stop {
         color: STOP_2,
-        progress: 0.8333,
+        progress: 0.833,
     },
     Stop {
         color: STOP_3,
@@ -50,14 +50,16 @@ pub enum InterpolationMethod {
 }
 
 pub struct Theme {
-    stops: Vec<Stop>,
+    pub stops: Vec<Stop>,
+    pub idle: Color,
     interpolation_method: InterpolationMethod,
 }
 
 impl Theme {
-    pub fn new(stops: Vec<Stop>, interpolation_method: InterpolationMethod) -> Self {
+    pub fn new(stops: Vec<Stop>, idle: Color, interpolation_method: InterpolationMethod) -> Self {
         Self {
             stops: stops,
+            idle: idle,
             interpolation_method: interpolation_method,
         }
     }
@@ -146,7 +148,7 @@ mod tests {
 
     #[test]
     fn current_color_is_stop_0_at_t_0() {
-        let theme = Theme::new(DEFAULT_STOPS.to_vec(), InterpolationMethod::Lerp);
+        let theme = Theme::new(DEFAULT_STOPS.to_vec(), IDLE, InterpolationMethod::Lerp);
         let t: f32 = 0.0;
         let stop_0 = theme.current_color(t);
 
@@ -155,7 +157,7 @@ mod tests {
 
     #[test]
     fn current_color_is_stop_1_at_t_0_point_5() {
-        let theme = Theme::new(DEFAULT_STOPS.to_vec(), InterpolationMethod::Lerp);
+        let theme = Theme::new(DEFAULT_STOPS.to_vec(), IDLE, InterpolationMethod::Lerp);
         let t: f32 = 0.5;
         let stop_1 = theme.current_color(t);
 
@@ -164,7 +166,7 @@ mod tests {
 
     #[test]
     fn current_color_is_stop_2_at_t_0_point_8_3_3() {
-        let theme = Theme::new(DEFAULT_STOPS.to_vec(), InterpolationMethod::Lerp);
+        let theme = Theme::new(DEFAULT_STOPS.to_vec(), IDLE, InterpolationMethod::Lerp);
         let t: f32 = 0.833;
         let stop_2 = theme.current_color(t);
 
@@ -173,7 +175,7 @@ mod tests {
 
     #[test]
     fn current_color_is_correct_at_t_0_point_25() {
-        let theme = Theme::new(DEFAULT_STOPS.to_vec(), InterpolationMethod::Lerp);
+        let theme = Theme::new(DEFAULT_STOPS.to_vec(), IDLE, InterpolationMethod::Lerp);
         let t: f32 = 0.25;
         let color = theme.current_color(t);
         let correct_color = Color {
@@ -207,10 +209,5 @@ mod tests {
         let correct_color = Color { r: 102, g: 0, b: 0 };
 
         assert_eq!(color, correct_color);
-    }
-
-    #[test]
-    fn default_theme_from_default_raw_theme_works() {
-        todo!();
     }
 }
