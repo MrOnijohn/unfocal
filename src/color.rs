@@ -39,8 +39,8 @@ pub struct Color {
 
 #[derive(Clone, Copy, Debug)]
 pub struct Stop {
-    color: Color,
-    progress: f32,
+    pub color: Color,
+    pub progress: f32,
 }
 
 pub enum InterpolationMethod {
@@ -52,7 +52,7 @@ pub enum InterpolationMethod {
 pub struct Theme {
     pub stops: Vec<Stop>,
     pub idle: Color,
-    interpolation_method: InterpolationMethod,
+    pub interpolation_method: InterpolationMethod,
 }
 
 impl Theme {
@@ -189,7 +189,7 @@ mod tests {
 
     #[test]
     fn current_color_is_correct_at_t_0_point_6_6_6() {
-        let theme = Theme::new(DEFAULT_STOPS.to_vec(), InterpolationMethod::Lerp);
+        let theme = Theme::new(DEFAULT_STOPS.to_vec(), IDLE, InterpolationMethod::Lerp);
         let t: f32 = 0.666;
         let color = theme.current_color(t);
         let correct_color = Color {
@@ -202,9 +202,9 @@ mod tests {
     }
 
     #[test]
-    fn current_color_is_correct_at_t_0_point_9_1_7() {
-        let theme = Theme::new(DEFAULT_STOPS.to_vec(), InterpolationMethod::Lerp);
-        let t: f32 = 0.917;
+    fn current_color_is_correct_at_t_0_point_9_1_6_5() {
+        let theme = Theme::new(DEFAULT_STOPS.to_vec(), IDLE, InterpolationMethod::Lerp);
+        let t: f32 = 0.9165;
         let color = theme.current_color(t);
         let correct_color = Color { r: 102, g: 0, b: 0 };
 

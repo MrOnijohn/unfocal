@@ -122,14 +122,14 @@ mod tests {
 
     #[test]
     fn new_timer_has_full_duration_remaining() {
-        let timer = Timer::new(THIRTY_MINUTES);
+        let timer = Timer::new(30);
 
         assert_eq!(THIRTY_MINUTES, timer.focus_time);
     }
 
     #[test]
     fn started_timer_is_running() {
-        let mut timer = Timer::new(THIRTY_MINUTES);
+        let mut timer = Timer::new(32);
         timer.start();
 
         assert!(timer.is_running());
@@ -196,7 +196,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn starting_running_timer_panics() {
-        let mut timer = Timer::new(THIRTY_MINUTES);
+        let mut timer = Timer::new(30);
         timer.start();
         timer.start();
     }
@@ -204,7 +204,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn pausing_idle_timer_panics() {
-        let mut timer = Timer::new(THIRTY_MINUTES);
+        let mut timer = Timer::new(32);
         timer.pause();
     }
 
