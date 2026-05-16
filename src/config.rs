@@ -127,4 +127,10 @@ mod tests {
         assert_eq!(themes[&theme_name].stops[2].progress, stop_2_progress);
         assert_eq!(themes[&theme_name].stops[3].progress, stop_3_progress);
     }
+
+    #[test]
+    fn load_themes_returns_error_for_missing_file() {
+        let result = load_themes("nonexistent.toml");
+        assert!(result.is_err());
+    }
 }
