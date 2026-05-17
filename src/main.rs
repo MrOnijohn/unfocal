@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use eframe::egui;
 use unfocol::Unfocol;
 
@@ -11,6 +13,6 @@ fn main() -> eframe::Result {
     eframe::run_native(
         "Unfocol",
         options,
-        Box::new(|cc| Ok(Box::<Unfocol>::default())),
+        Box::new(|cc| Ok(Box::<Unfocol<fn() -> Instant>>::default())),
     )
 }

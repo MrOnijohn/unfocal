@@ -4,5 +4,5 @@ mod config;
 mod timer;
 
 pub use app::Unfocol;
-pub use color::Theme;
+pub use color::{Color, Stop, Theme};
 pub use timer::Timer;

@@ -1,9 +1,9 @@
 use std::time::{Duration, Instant};
 
 pub struct Timer<F: Fn() -> Instant> {
-    clock: F,
-    state: SessionState,
-    focus_time: Duration,
+    pub clock: F,
+    pub state: SessionState,
+    pub focus_time: Duration,
 }
 
 pub enum SessionState {
@@ -17,13 +17,25 @@ pub enum SessionState {
 }
 
 impl Timer<fn() -> Instant> {
-    fn new(focus_time_in_minutes: u32) -> Self {
+    pub fn new(focus_time_in_minutes: u32) -> Self {
         Self {
             clock: Instant::now,
             state: SessionState::Idle {
                 remaining_time: Duration::from_mins(focus_time_in_minutes.into()),
             },
             focus_time: Duration::from_mins(focus_time_in_minutes.into()),
+        }
+    }
+}
+
+impl Default for Timer<fn() -> Instant> {
+    fn default() -> Self {
+        Self {
+            clock: std::time::Instant::now,
+            state: crate::timer::SessionState::Idle {
+                remaining_time: Duration::from_mins(30),
+            },
+            focus_time: Duration::from_mins(30),
         }
     }
 }
@@ -39,7 +51,7 @@ impl<F: Fn() -> Instant> Timer<F> {
         }
     }
 
-    fn start(&mut self) {
+    pub fn start(&mut self) {
         match self.state {
             SessionState::Idle { remaining_time } => {
                 self.state = SessionState::Running {
@@ -51,7 +63,7 @@ impl<F: Fn() -> Instant> Timer<F> {
         }
     }
 
-    fn pause(&mut self) {
+    pub fn pause(&mut self) {
         match self.state {
             SessionState::Running { .. } => {
                 self.state = SessionState::Idle {
@@ -64,13 +76,13 @@ impl<F: Fn() -> Instant> Timer<F> {
         }
     }
 
-    fn reset(&mut self) {
+    pub fn reset(&mut self) {
         self.state = SessionState::Idle {
             remaining_time: self.focus_time.clone(),
         };
     }
 
-    fn remaining(&self) -> Duration {
+    pub fn remaining(&self) -> Duration {
         match self.state {
             SessionState::Running {
                 started_at,
@@ -80,15 +92,12 @@ impl<F: Fn() -> Instant> Timer<F> {
         }
     }
 
-    fn progress(&self) -> f32 {
+    pub fn progress(&self) -> f32 {
         match self.state {
             SessionState::Idle { .. } => {
                 panic!("remaining_as_ratio should not be called from Idle state!")
             }
-            SessionState::Running {
-                started_at,
-                remaining_time_at_start,
-            } => {
+            SessionState::Running { .. } => {
                 let raw_progress: f32 = (self.focus_time.as_secs_f32()
                     - self.remaining().as_secs_f32())
                     / self.focus_time.as_secs_f32();
@@ -97,7 +106,7 @@ impl<F: Fn() -> Instant> Timer<F> {
         }
     }
 
-    fn update_state(&mut self) {
+    pub fn update_state(&mut self) {
         if self.remaining().is_zero() && self.is_running() {
             self.reset()
         }
@@ -109,6 +118,13 @@ impl<F: Fn() -> Instant> Timer<F> {
 
     fn is_idle(&self) -> bool {
         matches!(self.state, SessionState::Idle { .. })
+    }
+
+    pub fn toggle(&mut self) {
+        match self.state {
+            SessionState::Running { .. } => self.pause(),
+            SessionState::Idle { .. } => self.start(),
+        }
     }
 }
 

@@ -1,3 +1,5 @@
+use eframe::egui::{self, Color32};
+
 pub const IDLE: Color = Color {
     r: 0,
     g: 204,
@@ -35,6 +37,12 @@ pub struct Color {
     pub r: u8,
     pub g: u8,
     pub b: u8,
+}
+
+impl From<Color> for egui::Color32 {
+    fn from(c: Color) -> Self {
+        egui::Color32::from_rgb(c.r, c.g, c.b)
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -96,6 +104,41 @@ impl Theme {
             "lerp: no segment found for t={t:.4}, stops={:?}",
             self.stops
         );
+    }
+}
+
+impl Default for Theme {
+    fn default() -> Self {
+        Self {
+            idle: Color {
+                r: 0,
+                g: 204,
+                b: 204,
+            },
+            stops: vec![
+                Stop {
+                    progress: 0.0,
+                    color: Color { r: 0, g: 204, b: 0 },
+                },
+                Stop {
+                    progress: 0.5,
+                    color: Color {
+                        r: 204,
+                        g: 204,
+                        b: 0,
+                    },
+                },
+                Stop {
+                    progress: 0.833,
+                    color: Color { r: 204, g: 0, b: 0 },
+                },
+                Stop {
+                    progress: 1.0,
+                    color: Color { r: 0, g: 0, b: 0 },
+                },
+            ],
+            interpolation_method: crate::color::InterpolationMethod::Lerp,
+        }
     }
 }
 
