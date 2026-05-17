@@ -22,14 +22,9 @@ impl eframe::App for Unfocol {
             .frame(egui::Frame::default().fill(self.color))
             .show_inside(ui, |_ui| {});
 
-        if self.last_change.elapsed() > Duration::from_secs(1) {
-            if self.color == egui::Color32::RED {
-                self.color = egui::Color32::BLUE;
-            } else {
-                self.color = egui::Color32::RED;
-            }
-            self.last_change = Instant::now();
-        }
         ui.ctx().request_repaint_after(Duration::from_millis(500));
+        if ui.ctx.input(|i| i.key_pressed(egui::Key::Space)) {
+            todo!();
+        }
     }
 }

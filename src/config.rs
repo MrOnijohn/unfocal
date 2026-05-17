@@ -1,6 +1,5 @@
 use crate::color::{Color, Stop, Theme};
-use anyhow::Error;
-use csscolorparser::parse;
+use anyhow::Context;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
@@ -19,7 +18,7 @@ struct RawTheme {
 }
 
 impl TryFrom<RawTheme> for Theme {
-    type Error = anyhow::Error;
+    type Error = csscolorparser::ParseColorError;
     fn try_from(raw_theme: RawTheme) -> Result<Self, Self::Error> {
         let raw_idle = csscolorparser::parse(&raw_theme.idle)?;
         let idle_values = raw_idle.to_rgba8();
@@ -44,7 +43,7 @@ impl TryFrom<RawTheme> for Theme {
 }
 
 impl TryFrom<RawStop> for Stop {
-    type Error = anyhow::Error;
+    type Error = csscolorparser::ParseColorError;
     fn try_from(raw_stop: RawStop) -> Result<Self, Self::Error> {
         let raw_color = csscolorparser::parse(&raw_stop.color)?;
         let color_values = raw_color.to_rgba8();
@@ -76,7 +75,9 @@ pub struct Config {
 }
 
 pub fn load_themes(themes_toml: impl AsRef<Path>) -> Result<HashMap<String, Theme>, anyhow::Error> {
-    let toml_as_str = fs::read_to_string(themes_toml)?;
+    let path = themes_toml.as_ref();
+    let toml_as_str = fs::read_to_string(path)
+        .with_context(|| format!("Reading {} as a String", path.display()))?;
     let raw_config: RawConfig = toml::from_str(&toml_as_str)?;
 
     let themes: HashMap<String, Theme> = raw_config
