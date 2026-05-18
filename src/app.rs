@@ -30,12 +30,6 @@ impl Unfocol<fn() -> Instant> {
             if i.key_pressed(egui::Key::D) {
                 todo!(); // Debug mode: display progress(t), remaining, and Color
             }
-            if i.key_pressed(egui::Key::T) {
-                todo!(); // Switch theme, how?
-            }
-            if i.key_pressed(egui::Key::A) {
-                todo!(); // (A)ccelerate time/scrub forward 10 seconds (or more?)
-            }
         });
     }
 }
@@ -66,6 +60,8 @@ impl eframe::App for Unfocol<fn() -> Instant> {
             .frame(egui::Frame::default().fill(current_color.into()))
             .show_inside(ui, |_ui| {});
 
-        ui.ctx().request_repaint_after(Duration::from_millis(500));
+        if matches!(self.timer.state, SessionState::Running { .. }) {
+            ui.ctx().request_repaint_after(Duration::from_secs(1));
+        }
     }
 }
