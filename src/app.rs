@@ -10,6 +10,7 @@ use crate::timer::SessionState;
 pub struct Unfocol<F: Fn() -> Instant> {
     timer: Timer<F>,
     theme: Theme,
+    show_settings: bool,
 }
 
 impl Unfocol<fn() -> Instant> {
@@ -19,7 +20,7 @@ impl Unfocol<fn() -> Instant> {
                 self.timer.toggle();
             }
             if i.key_pressed(egui::Key::S) || i.key_pressed(egui::Key::Comma) {
-                todo!(); // Open settings
+                self.show_settings = true;
             }
             if i.key_pressed(egui::Key::R) {
                 self.timer.reset();
@@ -32,6 +33,18 @@ impl Unfocol<fn() -> Instant> {
             }
         });
     }
+
+    fn render_settings(&mut self, ctx: &egui::Context) {
+        egui::Window::new("Settings")
+            .open(&mut self.show_settings)
+            .show(ctx, |ui| ui.label("Settings go here"));
+    }
+
+    fn render_focus_window(&mut self, current_color: Color, ui: &mut egui::Ui) {
+        egui::CentralPanel::default()
+            .frame(egui::Frame::default().fill(current_color.into()))
+            .show_inside(ui, |_ui| {});
+    }
 }
 
 impl Default for Unfocol<fn() -> Instant> {
@@ -39,6 +52,7 @@ impl Default for Unfocol<fn() -> Instant> {
         Self {
             timer: Timer::default(),
             theme: Theme::default(),
+            show_settings: true,
         }
     }
 }
@@ -49,6 +63,8 @@ impl eframe::App for Unfocol<fn() -> Instant> {
 
         self.timer.update_state();
 
+        self.render_settings(ui.ctx());
+
         let current_color: Color = match self.timer.state {
             SessionState::Idle { .. } => self.theme.idle,
             SessionState::Running { .. } => {
@@ -56,9 +72,8 @@ impl eframe::App for Unfocol<fn() -> Instant> {
                 self.theme.current_color(t)
             }
         };
-        egui::CentralPanel::default()
-            .frame(egui::Frame::default().fill(current_color.into()))
-            .show_inside(ui, |_ui| {});
+
+        self.render_focus_window(current_color, ui);
 
         if matches!(self.timer.state, SessionState::Running { .. }) {
             ui.ctx().request_repaint_after(Duration::from_secs(1));
