@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
 use eframe::egui;
@@ -15,7 +16,9 @@ pub struct Unfocol<F: Fn() -> Instant> {
     theme: Theme,
     show_settings: bool,
     settings_t: f32,
+    settings_idle: bool,
     selected_theme: String,
+    available_themes: HashMap<String, Theme>,
 }
 
 impl Unfocol<fn() -> Instant> {
@@ -47,26 +50,24 @@ impl Unfocol<fn() -> Instant> {
                 .with_active(true)
                 .with_decorations(true)
                 .with_close_button(true);
-            let class = ViewportClass::Immediate;
-            ctx.show_viewport_immediate(viewport_id, builder, |ui, class| {
+            let _class = ViewportClass::Immediate;
+
+            ctx.show_viewport_immediate(viewport_id, builder, |ui, _class| {
                 egui::CentralPanel::default().show_inside(ui, |ui| {
                     if ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
                         self.show_settings = false;
                         ui.close();
                     }
+
                     ui.label("Unfocol Settings");
 
                     ui.add(egui::Slider::new(&mut self.settings_t, 0.0..=1.0));
-                    let theme_names = vec!["default", "nord", "gruvbox"];
+
                     egui::ComboBox::from_label("Choose theme")
                         .selected_text(format!("{:?}", self.selected_theme))
                         .show_ui(ui, |ui| {
-                            for theme in theme_names {
-                                ui.selectable_value(
-                                    &mut self.selected_theme,
-                                    theme.to_owned(),
-                                    theme,
-                                );
+                            for theme in self.available_themes.keys() {
+                                ui.selectable_value(&mut self.selected_theme, theme.clone(), theme);
                             }
                         });
                 });
@@ -79,6 +80,24 @@ impl Unfocol<fn() -> Instant> {
             .frame(egui::Frame::default().fill(current_color.into()))
             .show_inside(ui, |_ui| {});
     }
+
+    fn get_current_color(&self) -> Color {
+        if self.show_settings {
+            if self.settings_idle {
+                self.theme.idle
+            } else {
+                self.theme.current_color(self.settings_t)
+            }
+        } else {
+            match self.timer.state {
+                SessionState::Idle { .. } => self.theme.idle,
+                SessionState::Running { .. } => {
+                    let t: f32 = self.timer.progress();
+                    self.theme.current_color(t)
+                }
+            }
+        }
+    }
 }
 
 impl Default for Unfocol<fn() -> Instant> {
@@ -88,7 +107,13 @@ impl Default for Unfocol<fn() -> Instant> {
             theme: Theme::default(),
             show_settings: true,
             settings_t: 0.0,
+            settings_idle: false,
             selected_theme: "default".to_string(),
+            available_themes: {
+                let mut map = HashMap::new();
+                map.insert("default".to_string(), Theme::default());
+                map
+            },
         }
     }
 }
@@ -101,14 +126,7 @@ impl eframe::App for Unfocol<fn() -> Instant> {
 
         self.render_settings(ui.ctx());
 
-        let current_color: Color = match self.timer.state {
-            SessionState::Idle { .. } => self.theme.idle,
-            SessionState::Running { .. } => {
-                let t: f32 = self.timer.progress();
-                self.theme.current_color(t)
-            }
-        };
-
+        let current_color: Color = self.get_current_color();
         self.render_focus_window(current_color, ui);
 
         if matches!(self.timer.state, SessionState::Running { .. }) {
