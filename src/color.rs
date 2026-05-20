@@ -1,4 +1,5 @@
-use eframe::egui::{self, Color32};
+use eframe::egui;
+use serde::{Deserialize, Serialize};
 
 pub const IDLE: Color = Color {
     r: 0,
@@ -32,7 +33,7 @@ pub const DEFAULT_STOPS: &[Stop] = &[
     },
 ];
 
-#[derive(PartialEq, Debug, Copy, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Debug, Copy, Clone)]
 pub struct Color {
     pub r: u8,
     pub g: u8,
@@ -45,18 +46,20 @@ impl From<Color> for egui::Color32 {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug)]
 pub struct Stop {
     pub color: Color,
     pub progress: f32,
 }
 
+#[derive(Serialize, Deserialize, Clone, Copy)]
 pub enum InterpolationMethod {
     Lerp,
     LinearRGB,
     Oklab,
 }
 
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Theme {
     pub stops: Vec<Stop>,
     pub idle: Color,
@@ -66,21 +69,25 @@ pub struct Theme {
 impl Theme {
     pub fn new(stops: Vec<Stop>, idle: Color, interpolation_method: InterpolationMethod) -> Self {
         Self {
-            stops: stops,
-            idle: idle,
-            interpolation_method: interpolation_method,
+            stops,
+            idle,
+            interpolation_method,
         }
     }
 
     pub fn current_color(&self, t: f32) -> Color {
         match self.interpolation_method {
-            InterpolationMethod::Lerp => Self::lerp(&self, t),
+            InterpolationMethod::Lerp => Self::lerp(self, t),
             _ => todo!(),
         }
     }
 
     fn lerp(&self, t: f32) -> Color {
-        debug_assert!(t < 1.0);
+        if t == 1.0
+            && let Some(stop) = self.stops.last()
+        {
+            return stop.color;
+        }
         for i in 0..self.stops.len() - 1 {
             if self.stops[i].progress <= t && t < self.stops[i + 1].progress {
                 let ratio: f32 = (t - self.stops[i].progress)

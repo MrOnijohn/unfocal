@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
 use eframe::egui;
@@ -9,6 +8,7 @@ use eframe::egui::ViewportId;
 use crate::Theme;
 use crate::Timer;
 use crate::color::Color;
+use crate::config::Config;
 use crate::timer::SessionState;
 
 pub struct Unfocol<F: Fn() -> Instant> {
@@ -17,29 +17,35 @@ pub struct Unfocol<F: Fn() -> Instant> {
     show_settings: bool,
     settings_t: f32,
     settings_idle: bool,
-    selected_theme: String,
-    available_themes: HashMap<String, Theme>,
+    config: Config,
 }
 
 impl Unfocol<fn() -> Instant> {
     fn handle_inputs(&mut self, ctx: &egui::Context) {
-        ctx.input(|i| {
-            if i.key_pressed(egui::Key::Space) {
-                self.timer.toggle();
-            }
-            if i.key_pressed(egui::Key::S) || i.key_pressed(egui::Key::Comma) {
-                self.show_settings = true;
-            }
-            if i.key_pressed(egui::Key::R) {
-                self.timer.reset();
-            }
-            if i.key_pressed(egui::Key::Q) {
-                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-            }
-            if i.key_pressed(egui::Key::D) {
-                todo!(); // Debug mode: display progress(t), remaining, and Color
-            }
+        let (toggle_state, open_settings, reset_timer, quit, debug_mode) = ctx.input(|i| {
+            (
+                i.key_pressed(egui::Key::Space),
+                i.key_pressed(egui::Key::S) || i.key_pressed(egui::Key::Comma),
+                i.key_pressed(egui::Key::R),
+                i.key_pressed(egui::Key::Q),
+                i.key_pressed(egui::Key::D),
+            )
         });
+        if toggle_state {
+            self.timer.toggle();
+        }
+        if open_settings {
+            self.show_settings = true;
+        }
+        if reset_timer {
+            self.timer.reset();
+        }
+        if quit {
+            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+        }
+        if debug_mode {
+            todo!(); // Debug mode: display progress(t), remaining, and Color
+        }
     }
 
     fn render_settings(&mut self, ctx: &egui::Context) {
@@ -49,30 +55,64 @@ impl Unfocol<fn() -> Instant> {
                 .with_title("Settings Viewport")
                 .with_active(true)
                 .with_decorations(true)
-                .with_close_button(true);
+                .with_close_button(true)
+                .with_inner_size([480.0, 200.0])
+                .with_min_inner_size([480.0, 200.0]);
             let _class = ViewportClass::Immediate;
 
             ctx.show_viewport_immediate(viewport_id, builder, |ui, _class| {
+                if let Some(cmd) = egui::ViewportCommand::center_on_screen(ctx) {
+                    ctx.send_viewport_cmd(cmd);
+                }
                 egui::CentralPanel::default().show_inside(ui, |ui| {
                     if ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
                         self.show_settings = false;
                         ui.close();
                     }
 
-                    ui.label("Unfocol Settings");
-
-                    ui.add(egui::Slider::new(&mut self.settings_t, 0.0..=1.0));
-
-                    egui::ComboBox::from_label("Choose theme")
-                        .selected_text(format!("{:?}", self.selected_theme))
-                        .show_ui(ui, |ui| {
-                            for theme in self.available_themes.keys() {
-                                ui.selectable_value(&mut self.selected_theme, theme.clone(), theme);
+                    egui::Grid::new("settings_grid")
+                        .min_col_width(200.0)
+                        .spacing([16.0, 12.0])
+                        .show(ui, |ui| {
+                            let before = self.config.settings.selected_theme.clone();
+                            egui::ComboBox::from_label("Choose theme")
+                                .selected_text(format!("{:?}", self.config.settings.selected_theme))
+                                .show_ui(ui, |ui| {
+                                    for theme in self.config.themes.keys() {
+                                        ui.selectable_value(
+                                            &mut self.config.settings.selected_theme,
+                                            theme.clone(),
+                                            theme,
+                                        );
+                                    }
+                                });
+                            if before != self.config.settings.selected_theme {
+                                self.theme = self.config.themes
+                                    [&self.config.settings.selected_theme]
+                                    .clone();
                             }
+                            ui.add(
+                                egui::Slider::new(&mut self.config.settings.focus_time, 10..=100)
+                                    .text("Focus time duration"),
+                            );
+                            ui.end_row();
+                            ui.add(
+                                egui::Slider::new(&mut self.settings_t, 0.0..=1.0)
+                                    .text("Preview focus color"),
+                            );
+                            ui.add(egui::Checkbox::new(
+                                &mut self.settings_idle,
+                                "Preview idle color",
+                            ));
                         });
                 });
             });
         }
+    }
+
+    fn set_theme(&mut self, theme_name: String) {
+        self.theme = self.config.themes[&theme_name].clone();
+        self.config.settings.selected_theme = theme_name;
     }
 
     fn render_focus_window(&mut self, current_color: Color, ui: &mut egui::Ui) {
@@ -108,12 +148,7 @@ impl Default for Unfocol<fn() -> Instant> {
             show_settings: true,
             settings_t: 0.0,
             settings_idle: false,
-            selected_theme: "default".to_string(),
-            available_themes: {
-                let mut map = HashMap::new();
-                map.insert("default".to_string(), Theme::default());
-                map
-            },
+            config: Config::default(),
         }
     }
 }

@@ -64,14 +64,43 @@ struct RawConfig {
     themes: HashMap<String, RawTheme>,
 }
 
-struct Settings {
-    focus_time: u32,
-    selected_theme: String,
+#[derive(Serialize, Deserialize)]
+pub struct Settings {
+    pub focus_time: u32,
+    pub selected_theme: String,
 }
 
+impl Default for Settings {
+    fn default() -> Self {
+        Self {
+            focus_time: 30,
+            selected_theme: "default".to_string(),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
 pub struct Config {
-    themes: HashMap<String, Theme>,
-    settings: Settings,
+    pub themes: HashMap<String, Theme>,
+    pub settings: Settings,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            themes: {
+                match load_themes("themes.toml") {
+                    Ok(themes) => themes,
+                    Err(..) => {
+                        let mut map = HashMap::new();
+                        map.insert("default".to_string(), Theme::default());
+                        map
+                    }
+                }
+            },
+            settings: Settings::default(),
+        }
+    }
 }
 
 pub fn load_themes(themes_toml: impl AsRef<Path>) -> Result<HashMap<String, Theme>, anyhow::Error> {

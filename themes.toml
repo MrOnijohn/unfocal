@@ -44,6 +44,7 @@ color = "#b0e0e6"
 
 [[themes.orange_teal.stops]]
 progress = 1.0
+color = "#008080"
 
 # Nord
 [themes.nord]
@@ -104,4 +105,3 @@ color = "#fb4934" # red
 [[themes.gruvbox_dark.stops]]
 progress = 1.0
 color = "#282828" # bg
-
