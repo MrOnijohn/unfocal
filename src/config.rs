@@ -1,5 +1,6 @@
 use crate::color::{Color, Stop, Theme};
 use anyhow::Context;
+use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;

@@ -110,11 +110,6 @@ impl Unfocol<fn() -> Instant> {
         }
     }
 
-    fn set_theme(&mut self, theme_name: String) {
-        self.theme = self.config.themes[&theme_name].clone();
-        self.config.settings.selected_theme = theme_name;
-    }
-
     fn render_focus_window(&mut self, current_color: Color, ui: &mut egui::Ui) {
         egui::CentralPanel::default()
             .frame(egui::Frame::default().fill(current_color.into()))
