@@ -21,6 +21,17 @@ pub struct Unfocol<F: Fn() -> Instant> {
 }
 
 impl Unfocol<fn() -> Instant> {
+    fn new(config: Config) -> Self {
+        Self {
+            timer: Timer::default(),
+            theme: Theme::default(),
+            show_settings: true,
+            settings_t: 0.0,
+            settings_idle: false,
+            config,
+        }
+    }
+
     fn handle_inputs(&mut self, ctx: &egui::Context) {
         let (toggle_state, open_settings, reset_timer, quit, debug_mode) = ctx.input(|i| {
             (
