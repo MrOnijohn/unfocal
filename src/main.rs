@@ -1,24 +1,21 @@
-use std::collections::HashMap;
 use std::fs::create_dir_all;
-use std::path::{Path, PathBuf};
-use std::time::Instant;
+use std::path::PathBuf;
 
 use directories::ProjectDirs;
 use eframe::egui;
 use log::{error, info, warn};
-use unfocol::{Theme, Unfocol, load_themes};
+use unfocol::{Config, Unfocol, load_settings, load_themes};
 
 fn main() -> eframe::Result {
     env_logger::init();
     let config_dir = get_or_create_config_dir();
     let themes_toml = config_dir.join("themes.toml");
+    let settings_toml = config_dir.join("settings.toml");
 
-    let themes: HashMap<String, Theme> = load_themes(themes_toml).unwrap_or_else(|e| {
-        warn!("Themes loading failed: {e} Using default.");
-        let mut default_themes: HashMap<String, Theme> = HashMap::new();
-        default_themes.insert("default".to_string(), Theme::default());
-        default_themes
-    });
+    let themes = load_themes(themes_toml);
+    let settings = load_settings(settings_toml);
+
+    let config = Config::new(themes, settings);
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
@@ -33,7 +30,7 @@ fn main() -> eframe::Result {
     eframe::run_native(
         "Unfocol",
         options,
-        Box::new(|cc| Ok(Box::<Unfocol<fn() -> Instant>>::default())),
+        Box::new(|_cc| Ok(Box::new(Unfocol::new(config)))),
     )
 }
 

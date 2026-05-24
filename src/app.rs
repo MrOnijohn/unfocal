@@ -21,7 +21,7 @@ pub struct Unfocol<F: Fn() -> Instant> {
 }
 
 impl Unfocol<fn() -> Instant> {
-    fn new(config: Config) -> Self {
+    pub fn new(config: Config) -> Self {
         Self {
             timer: Timer::default(),
             theme: Theme::default(),

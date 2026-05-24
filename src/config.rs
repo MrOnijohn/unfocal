@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
-const DEFAULT_THEMES: &'static str = include_str!("../assets/themes.toml");
+const DEFAULT_THEMES: &str = include_str!("../assets/themes.toml");
 
 #[derive(Serialize, Deserialize)]
 struct RawStop {
@@ -88,12 +88,27 @@ pub struct Config {
     pub settings: Settings,
 }
 
+impl Config {
+    pub fn new(themes: HashMap<String, Theme>, settings: Settings) -> Self {
+        Self { themes, settings }
+    }
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        let themes: HashMap<String, Theme> =
+            toml::from_str(DEFAULT_THEMES).expect("DEFAULT_THEMES malformed");
+        let settings = Settings::default();
+        Self { themes, settings }
+    }
+}
+
 pub fn load_themes(themes_toml: impl AsRef<Path>) -> HashMap<String, Theme> {
     match try_load_themes(themes_toml) {
         Ok(themes) => themes,
         Err(e) => {
             warn!("Failed to load themes: {e}");
-            warn!("Falling back to default");
+            warn!("Falling back to defaults");
             let themes: HashMap<String, Theme> =
                 toml::from_str(DEFAULT_THEMES).expect("assets/themes.toml malformed");
             themes
@@ -116,9 +131,22 @@ fn try_load_themes(themes_toml: impl AsRef<Path>) -> Result<HashMap<String, Them
     Ok(themes)
 }
 
-pub fn load_settings(settings_toml: impl AsRef<Path>) -> Result<Settings, anyhow::Error> {
-    let toml_as_str = get_toml_as_str(settings_toml);
-    let settings: Settings = toml::from_str(&toml_as_str)?;
+pub fn load_settings(settings_toml: impl AsRef<Path>) -> Settings {
+    match try_load_settings(settings_toml) {
+        Ok(settings) => settings,
+        Err(e) => {
+            warn!("Failed to load settings {e}");
+            warn!("Falling back to defaults");
+            Settings::default()
+        }
+    }
+}
+
+fn try_load_settings(settings_toml: impl AsRef<Path>) -> Result<Settings, anyhow::Error> {
+    let toml_as_str = get_toml_as_str(settings_toml)
+        .with_context(|| format!("Loading settings from settings.toml"))?;
+    let settings: Settings =
+        toml::from_str(&toml_as_str).with_context(|| format!("Parsing settings.toml"))?;
 
     Ok(settings)
 }
@@ -138,7 +166,7 @@ mod tests {
     fn load_themes_returns_valid_default_theme() {
         let test_file = "themes_test.toml";
         let theme_name = "default".to_string();
-        let themes = load_themes(test_file).unwrap();
+        let themes = load_themes(test_file);
 
         let correct_idle = Color {
             r: 0,
@@ -169,11 +197,5 @@ mod tests {
         assert_eq!(themes[&theme_name].stops[1].progress, stop_1_progress);
         assert_eq!(themes[&theme_name].stops[2].progress, stop_2_progress);
         assert_eq!(themes[&theme_name].stops[3].progress, stop_3_progress);
-    }
-
-    #[test]
-    fn load_themes_returns_error_for_missing_file() {
-        let result = load_themes("nonexistent.toml");
-        assert!(result.is_err());
     }
 }
