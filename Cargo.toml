@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0.102"
+atomicwrites = "0.4.4"
 csscolorparser = "0.8.3"
 directories = "6.0.0"
 eframe = "0.34.2"

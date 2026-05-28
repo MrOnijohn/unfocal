@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
-const DEFAULT_THEMES: &str = include_str!("../assets/themes.toml");
+pub const DEFAULT_THEMES: &str = include_str!("../assets/themes.toml");
 
 #[derive(Serialize, Deserialize)]
 struct RawStop {
@@ -97,7 +97,7 @@ impl Config {
 impl Default for Config {
     fn default() -> Self {
         let themes: HashMap<String, Theme> =
-            toml::from_str(DEFAULT_THEMES).expect("DEFAULT_THEMES malformed");
+            toml::from_str(DEFAULT_THEMES).expect("assets/themes.toml malformed");
         let settings = Settings::default();
         Self { themes, settings }
     }
@@ -117,8 +117,7 @@ pub fn load_themes(themes_toml: impl AsRef<Path>) -> HashMap<String, Theme> {
 }
 
 fn try_load_themes(themes_toml: impl AsRef<Path>) -> Result<HashMap<String, Theme>, anyhow::Error> {
-    let toml_as_str = get_toml_as_str(themes_toml)
-        .with_context(|| format!("Getting toml data from themes.toml"))?;
+    let toml_as_str = get_toml_as_str(themes_toml).context("Getting toml data from themes.toml")?;
     let raw_config: RawConfig =
         toml::from_str(&toml_as_str).with_context(|| format!("Parsing toml: {}", &toml_as_str))?;
 
@@ -127,7 +126,7 @@ fn try_load_themes(themes_toml: impl AsRef<Path>) -> Result<HashMap<String, Them
         .into_iter()
         .map(|(name, raw_theme)| Theme::try_from(raw_theme).map(|theme| (name, theme)))
         .collect::<Result<HashMap<String, Theme>, _>>()
-        .with_context(|| format!("Parsing hex rgb"))?;
+        .context("Parsing hex rgb")?;
     Ok(themes)
 }
 
@@ -143,10 +142,9 @@ pub fn load_settings(settings_toml: impl AsRef<Path>) -> Settings {
 }
 
 fn try_load_settings(settings_toml: impl AsRef<Path>) -> Result<Settings, anyhow::Error> {
-    let toml_as_str = get_toml_as_str(settings_toml)
-        .with_context(|| format!("Loading settings from settings.toml"))?;
-    let settings: Settings =
-        toml::from_str(&toml_as_str).with_context(|| format!("Parsing settings.toml"))?;
+    let toml_as_str =
+        get_toml_as_str(settings_toml).context("Loading settings from settings.toml")?;
+    let settings: Settings = toml::from_str(&toml_as_str).context("Parsing settings.toml")?;
 
     Ok(settings)
 }

@@ -43,11 +43,11 @@ impl Default for Timer<fn() -> Instant> {
 impl<F: Fn() -> Instant> Timer<F> {
     pub fn new_with_fake_clock(focus_time: Duration, clock: F) -> Self {
         Self {
-            clock: clock,
+            clock,
             state: SessionState::Idle {
                 remaining_time: focus_time,
             },
-            focus_time: focus_time,
+            focus_time,
         }
     }
 
@@ -78,7 +78,7 @@ impl<F: Fn() -> Instant> Timer<F> {
 
     pub fn reset(&mut self) {
         self.state = SessionState::Idle {
-            remaining_time: self.focus_time.clone(),
+            remaining_time: self.focus_time,
         };
     }
 
@@ -116,6 +116,7 @@ impl<F: Fn() -> Instant> Timer<F> {
         matches!(self.state, SessionState::Running { .. })
     }
 
+    #[cfg(test)]
     fn is_idle(&self) -> bool {
         matches!(self.state, SessionState::Idle { .. })
     }

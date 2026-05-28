@@ -1,5 +1,10 @@
+use std::fs::File;
+use std::io::Write;
+use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
+use anyhow::Context;
+use atomicwrites::replace_atomic;
 use eframe::egui;
 use eframe::egui::ViewportBuilder;
 use eframe::egui::ViewportClass;
@@ -18,10 +23,11 @@ pub struct Unfocol<F: Fn() -> Instant> {
     settings_t: f32,
     settings_idle: bool,
     config: Config,
+    config_dir: PathBuf,
 }
 
 impl Unfocol<fn() -> Instant> {
-    pub fn new(config: Config) -> Self {
+    pub fn new(config: Config, config_dir: PathBuf) -> Self {
         Self {
             timer: Timer::default(),
             theme: Theme::default(),
@@ -29,6 +35,7 @@ impl Unfocol<fn() -> Instant> {
             settings_t: 0.0,
             settings_idle: false,
             config,
+            config_dir,
         }
     }
 
@@ -101,15 +108,24 @@ impl Unfocol<fn() -> Instant> {
                                 self.theme = self.config.themes
                                     [&self.config.settings.selected_theme]
                                     .clone();
+                                self.save_settings().expect("Failed to save settings");
                             }
-                            ui.add(
-                                egui::Slider::new(&mut self.config.settings.focus_time, 10..=100)
+                            if ui
+                                .add(
+                                    egui::Slider::new(
+                                        &mut self.config.settings.focus_time,
+                                        10..=100,
+                                    )
                                     .text("Focus time duration"),
-                            );
+                                )
+                                .changed()
+                            {
+                                self.save_settings().expect("Failed to save settings");
+                            }
                             ui.end_row();
                             ui.add(
                                 egui::Slider::new(&mut self.settings_t, 0.0..=1.0)
-                                    .text("Preview focus color"),
+                                    .text("Preview focus colors"),
                             );
                             ui.add(egui::Checkbox::new(
                                 &mut self.settings_idle,
@@ -119,6 +135,23 @@ impl Unfocol<fn() -> Instant> {
                 });
             });
         }
+    }
+
+    fn save_settings(&self) -> Result<(), anyhow::Error> {
+        let toml_str =
+            toml::to_string(&self.config.settings).context("Parsing settings to toml")?;
+        let tmp_file_path = self.config_dir.join(".settings.toml.tmp");
+        let mut tmp_file = File::create(&tmp_file_path)
+            .with_context(|| format!("Creating {}", tmp_file_path.display()))?;
+        tmp_file
+            .write_all(toml_str.as_bytes())
+            .with_context(|| format!("Writing toml to {}", tmp_file_path.display()))?;
+
+        let settings_toml = self.config_dir.join("settings.toml");
+        replace_atomic(&tmp_file_path, &settings_toml)
+            .context("Replacing settings.toml with .settings.toml.tmp")?;
+
+        Ok(())
     }
 
     fn render_focus_window(&mut self, current_color: Color, ui: &mut egui::Ui) {
@@ -142,19 +175,6 @@ impl Unfocol<fn() -> Instant> {
                     self.theme.current_color(t)
                 }
             }
-        }
-    }
-}
-
-impl Default for Unfocol<fn() -> Instant> {
-    fn default() -> Self {
-        Self {
-            timer: Timer::default(),
-            theme: Theme::default(),
-            show_settings: true,
-            settings_t: 0.0,
-            settings_idle: false,
-            config: Config::default(),
         }
     }
 }
