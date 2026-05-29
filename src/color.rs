@@ -1,19 +1,25 @@
 use eframe::egui;
 use serde::{Deserialize, Serialize};
 
+#[cfg(test)]
 pub const IDLE: Color = Color {
     r: 0,
     g: 204,
     b: 204,
 };
+#[cfg(test)]
 pub const STOP_0: Color = Color { r: 0, g: 204, b: 0 };
+#[cfg(test)]
 pub const STOP_1: Color = Color {
     r: 204,
     g: 204,
     b: 0,
 };
+#[cfg(test)]
 pub const STOP_2: Color = Color { r: 204, g: 0, b: 0 };
+#[cfg(test)]
 pub const STOP_3: Color = Color { r: 0, g: 0, b: 0 };
+#[cfg(test)]
 pub const DEFAULT_STOPS: &[Stop] = &[
     Stop {
         color: STOP_0,

@@ -11,6 +11,8 @@ use unfocol::{Config, DEFAULT_THEMES, Unfocol, load_settings, load_themes};
 
 fn main() -> eframe::Result {
     env_logger::init();
+
+    info!("Setting up configuration paths");
     let config_dir = get_or_create_config_dir();
     let themes_toml = config_dir.join("themes.toml");
     ensure_themes_toml_exists(&themes_toml, &config_dir).expect("Could not create themes.toml");
@@ -23,6 +25,7 @@ fn main() -> eframe::Result {
 
     let config = Config::new(themes, settings);
 
+    info!("Starting app");
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([100.0, 1080.0])
@@ -51,18 +54,19 @@ fn get_or_create_config_dir() -> PathBuf {
 
 fn ensure_themes_toml_exists(themes_toml: &Path, config_dir: &Path) -> Result<(), anyhow::Error> {
     if !themes_toml.exists() {
+        info!("No themes.toml file found, creating default.");
         let tmp_file_path = config_dir.join(".themes.toml.tmp");
         let mut tmp_file = File::create(&tmp_file_path)
             .with_context(|| format!("Creating {}", tmp_file_path.display()))?;
         tmp_file
             .write_all(DEFAULT_THEMES.as_bytes())
             .with_context(|| format!("Writing toml to {}", tmp_file_path.display()))?;
-
         replace_atomic(&tmp_file_path, themes_toml)
             .context("Replacing themes.toml with .themes.toml.tmp")?;
 
         Ok(())
     } else {
+        info!("Found themes.toml");
         Ok(())
     }
 }

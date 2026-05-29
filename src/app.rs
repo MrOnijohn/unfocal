@@ -19,7 +19,6 @@ use crate::timer::SessionState;
 pub struct Unfocol<F: Fn() -> Instant> {
     timer: Timer<F>,
     theme: Theme,
-    show_settings: bool,
     settings_t: f32,
     settings_idle: bool,
     config: Config,
@@ -31,7 +30,6 @@ impl Unfocol<fn() -> Instant> {
         Self {
             timer: Timer::default(),
             theme: Theme::default(),
-            show_settings: true,
             settings_t: 0.0,
             settings_idle: false,
             config,
@@ -53,7 +51,7 @@ impl Unfocol<fn() -> Instant> {
             self.timer.toggle();
         }
         if open_settings {
-            self.show_settings = true;
+            self.config.settings.show_settings = true;
         }
         if reset_timer {
             self.timer.reset();
@@ -67,15 +65,15 @@ impl Unfocol<fn() -> Instant> {
     }
 
     fn render_settings(&mut self, ctx: &egui::Context) {
-        if self.show_settings {
+        if self.config.settings.show_settings {
             let viewport_id = ViewportId::from_hash_of("settings");
             let builder = ViewportBuilder::default()
-                .with_title("Settings Viewport")
+                .with_title("Unfocol settings")
                 .with_active(true)
                 .with_decorations(true)
                 .with_close_button(true)
                 .with_inner_size([480.0, 200.0])
-                .with_min_inner_size([480.0, 200.0]);
+                .with_min_inner_size([50.0, 50.0]);
             let _class = ViewportClass::Immediate;
 
             ctx.show_viewport_immediate(viewport_id, builder, |ui, _class| {
@@ -83,9 +81,12 @@ impl Unfocol<fn() -> Instant> {
                     ctx.send_viewport_cmd(cmd);
                 }
                 egui::CentralPanel::default().show_inside(ui, |ui| {
-                    if ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
-                        self.show_settings = false;
-                        ui.close();
+                    let should_close = ctx.input(|i| {
+                        i.key_pressed(egui::Key::Escape) || i.viewport().close_requested()
+                    });
+                    if should_close {
+                        self.config.settings.show_settings = false;
+                        self.save_settings().expect("Failed to save settings");
                     }
 
                     egui::Grid::new("settings_grid")
@@ -114,7 +115,7 @@ impl Unfocol<fn() -> Instant> {
                                 .add(
                                     egui::Slider::new(
                                         &mut self.config.settings.focus_time,
-                                        10..=100,
+                                        5..=100,
                                     )
                                     .text("Focus time duration"),
                                 )
@@ -161,7 +162,7 @@ impl Unfocol<fn() -> Instant> {
     }
 
     fn get_current_color(&self) -> Color {
-        if self.show_settings {
+        if self.config.settings.show_settings {
             if self.settings_idle {
                 self.theme.idle
             } else {

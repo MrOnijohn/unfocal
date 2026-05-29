@@ -69,6 +69,7 @@ struct RawConfig {
 
 #[derive(Serialize, Deserialize)]
 pub struct Settings {
+    pub show_settings: bool,
     pub focus_time: u32,
     pub selected_theme: String,
 }
@@ -76,6 +77,7 @@ pub struct Settings {
 impl Default for Settings {
     fn default() -> Self {
         Self {
+            show_settings: true,
             focus_time: 30,
             selected_theme: "default".to_string(),
         }
@@ -131,6 +133,7 @@ fn try_load_themes(themes_toml: impl AsRef<Path>) -> Result<HashMap<String, Them
 }
 
 pub fn load_settings(settings_toml: impl AsRef<Path>) -> Settings {
+    // TODO Check if settings.toml exists and don't warn, but inform
     match try_load_settings(settings_toml) {
         Ok(settings) => settings,
         Err(e) => {
@@ -153,6 +156,7 @@ fn get_toml_as_str(path: impl AsRef<Path>) -> Result<String, anyhow::Error> {
     let path = path.as_ref();
     let toml_as_str = fs::read_to_string(path)
         .with_context(|| format!("Reading {} as a String", path.display()))?;
+
     Ok(toml_as_str)
 }
 
