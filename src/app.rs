@@ -38,13 +38,12 @@ impl Unfocol<fn() -> Instant> {
     }
 
     fn handle_inputs(&mut self, ctx: &egui::Context) {
-        let (toggle_state, open_settings, reset_timer, quit, debug_mode) = ctx.input(|i| {
+        let (toggle_state, open_settings, reset_timer, quit) = ctx.input(|i| {
             (
                 i.key_pressed(egui::Key::Space),
                 i.key_pressed(egui::Key::S) || i.key_pressed(egui::Key::Comma),
                 i.key_pressed(egui::Key::R),
                 i.key_pressed(egui::Key::Q),
-                i.key_pressed(egui::Key::D),
             )
         });
         if toggle_state {
@@ -58,9 +57,6 @@ impl Unfocol<fn() -> Instant> {
         }
         if quit {
             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-        }
-        if debug_mode {
-            todo!(); // Debug mode: display progress(t), remaining, and Color
         }
     }
 
