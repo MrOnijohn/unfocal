@@ -1,6 +1,8 @@
 # Default theme, fallback
 [themes.default]
 idle = "#00cccc"
+clock_bg = "#000000"
+clock_digits = "#ffffff"
 
 [[themes.default.stops]]
 progress = 0.0

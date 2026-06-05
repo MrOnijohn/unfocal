@@ -14,22 +14,32 @@ struct RawStop {
     progress: f32,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Deserialize)]
 struct RawTheme {
     idle: String,
+    #[serde(default)]
+    clock_bg: Option<String>,
+    #[serde(default)]
+    clock_digits: Option<String>,
     stops: Vec<RawStop>,
 }
 
 impl TryFrom<RawTheme> for Theme {
     type Error = csscolorparser::ParseColorError;
     fn try_from(raw_theme: RawTheme) -> Result<Self, Self::Error> {
-        let raw_idle = csscolorparser::parse(&raw_theme.idle)?;
-        let idle_values = raw_idle.to_rgba8();
-        let idle = Color {
-            r: idle_values[0],
-            g: idle_values[1],
-            b: idle_values[2],
-        };
+        let idle: Color = raw_theme.idle.parse()?;
+
+        let clock_bg: Color = raw_theme
+            .clock_bg
+            .map(|s| s.parse())
+            .transpose()?
+            .unwrap_or(Color::BLACK);
+
+        let clock_digits: Color = raw_theme
+            .clock_digits
+            .map(|s| s.parse())
+            .transpose()?
+            .unwrap_or(Color::WHITE);
 
         let stops: Vec<Stop> = raw_theme
             .stops
@@ -39,6 +49,8 @@ impl TryFrom<RawTheme> for Theme {
 
         Ok(Theme {
             idle,
+            clock_bg,
+            clock_digits,
             stops,
             interpolation_method: crate::color::InterpolationMethod::Lerp,
         })
@@ -48,21 +60,16 @@ impl TryFrom<RawTheme> for Theme {
 impl TryFrom<RawStop> for Stop {
     type Error = csscolorparser::ParseColorError;
     fn try_from(raw_stop: RawStop) -> Result<Self, Self::Error> {
-        let raw_color = csscolorparser::parse(&raw_stop.color)?;
-        let color_values = raw_color.to_rgba8();
+        let color: Color = raw_stop.color.parse()?;
 
         Ok(Stop {
-            color: Color {
-                r: color_values[0],
-                g: color_values[1],
-                b: color_values[2],
-            },
+            color,
             progress: raw_stop.progress,
         })
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Deserialize)]
 struct RawConfig {
     themes: HashMap<String, RawTheme>,
 }
@@ -84,7 +91,7 @@ impl Default for Settings {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize)]
 pub struct Config {
     pub themes: HashMap<String, Theme>,
     pub settings: Settings,
@@ -199,5 +206,66 @@ mod tests {
         assert_eq!(themes[&theme_name].stops[1].progress, stop_1_progress);
         assert_eq!(themes[&theme_name].stops[2].progress, stop_2_progress);
         assert_eq!(themes[&theme_name].stops[3].progress, stop_3_progress);
+    }
+
+    #[cfg(test)]
+    fn valid_raw_theme() -> RawTheme {
+        RawTheme {
+            idle: "#00cccc".into(),
+            stops: vec![
+                RawStop {
+                    progress: 0.0,
+                    color: "#00cc00".into(),
+                },
+                RawStop {
+                    progress: 1.0,
+                    color: "#000000".into(),
+                },
+            ],
+            clock_bg: Some("#000000".into()),
+            clock_digits: Some("#ffffff".into()),
+        }
+    }
+
+    #[test]
+    fn missing_clock_bg_returns_black() {
+        let raw = RawTheme {
+            clock_bg: None,
+            ..valid_raw_theme()
+        };
+        let theme = Theme::try_from(raw).unwrap();
+
+        assert_eq!(theme.clock_bg, Color::BLACK);
+    }
+
+    #[test]
+    fn missing_clock_digits_returns_white() {
+        let raw = RawTheme {
+            clock_digits: None,
+            ..valid_raw_theme()
+        };
+        let theme = Theme::try_from(raw).unwrap();
+
+        assert_eq!(theme.clock_digits, Color::WHITE);
+    }
+
+    #[test]
+    fn malformed_clock_bg_errors() {
+        let raw = RawTheme {
+            clock_bg: Some("#0000000".into()),
+            ..valid_raw_theme()
+        };
+
+        assert!(Theme::try_from(raw).is_err());
+    }
+
+    #[test]
+    fn malformed_clock_digits_errors() {
+        let raw = RawTheme {
+            clock_digits: Some("#fffffff".into()),
+            ..valid_raw_theme()
+        };
+
+        assert!(Theme::try_from(raw).is_err());
     }
 }

@@ -46,9 +46,26 @@ pub struct Color {
     pub b: u8,
 }
 
+impl Color {
+    pub const BLACK: Color = Color { r: 0, g: 0, b: 0 };
+    pub const WHITE: Color = Color {
+        r: 255,
+        g: 255,
+        b: 255,
+    };
+}
+
 impl From<Color> for egui::Color32 {
     fn from(c: Color) -> Self {
         egui::Color32::from_rgb(c.r, c.g, c.b)
+    }
+}
+
+impl std::str::FromStr for Color {
+    type Err = csscolorparser::ParseColorError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let [r, g, b, _] = csscolorparser::parse(s)?.to_rgba8();
+        Ok(Color { r, g, b })
     }
 }
 
@@ -69,14 +86,24 @@ pub enum InterpolationMethod {
 pub struct Theme {
     pub stops: Vec<Stop>,
     pub idle: Color,
+    pub clock_bg: Color,
+    pub clock_digits: Color,
     pub interpolation_method: InterpolationMethod,
 }
 
 impl Theme {
-    pub fn new(stops: Vec<Stop>, idle: Color, interpolation_method: InterpolationMethod) -> Self {
+    pub fn new(
+        stops: Vec<Stop>,
+        idle: Color,
+        clock_bg: Color,
+        clock_digits: Color,
+        interpolation_method: InterpolationMethod,
+    ) -> Self {
         Self {
             stops,
             idle,
+            clock_bg,
+            clock_digits,
             interpolation_method,
         }
     }
@@ -150,6 +177,8 @@ impl Default for Theme {
                     color: Color { r: 0, g: 0, b: 0 },
                 },
             ],
+            clock_bg: Color::BLACK,
+            clock_digits: Color::WHITE,
             interpolation_method: crate::color::InterpolationMethod::Lerp,
         }
     }
@@ -158,6 +187,16 @@ impl Default for Theme {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn valid_theme() -> Theme {
+        Theme::new(
+            DEFAULT_STOPS.to_vec(),
+            IDLE,
+            Color::BLACK,
+            Color::WHITE,
+            InterpolationMethod::Lerp,
+        )
+    }
 
     #[test]
     fn idle_is_correctly_defined() {
@@ -204,7 +243,7 @@ mod tests {
 
     #[test]
     fn current_color_is_stop_0_at_t_0() {
-        let theme = Theme::new(DEFAULT_STOPS.to_vec(), IDLE, InterpolationMethod::Lerp);
+        let theme = valid_theme();
         let t: f32 = 0.0;
         let stop_0 = theme.current_color(t);
 
@@ -213,7 +252,7 @@ mod tests {
 
     #[test]
     fn current_color_is_stop_1_at_t_0_point_5() {
-        let theme = Theme::new(DEFAULT_STOPS.to_vec(), IDLE, InterpolationMethod::Lerp);
+        let theme = valid_theme();
         let t: f32 = 0.5;
         let stop_1 = theme.current_color(t);
 
@@ -222,7 +261,7 @@ mod tests {
 
     #[test]
     fn current_color_is_stop_2_at_t_0_point_8_3_3() {
-        let theme = Theme::new(DEFAULT_STOPS.to_vec(), IDLE, InterpolationMethod::Lerp);
+        let theme = valid_theme();
         let t: f32 = 0.833;
         let stop_2 = theme.current_color(t);
 
@@ -231,7 +270,7 @@ mod tests {
 
     #[test]
     fn current_color_is_correct_at_t_0_point_25() {
-        let theme = Theme::new(DEFAULT_STOPS.to_vec(), IDLE, InterpolationMethod::Lerp);
+        let theme = valid_theme();
         let t: f32 = 0.25;
         let color = theme.current_color(t);
         let correct_color = Color {
@@ -245,7 +284,7 @@ mod tests {
 
     #[test]
     fn current_color_is_correct_at_t_0_point_6_6_6() {
-        let theme = Theme::new(DEFAULT_STOPS.to_vec(), IDLE, InterpolationMethod::Lerp);
+        let theme = valid_theme();
         let t: f32 = 0.666;
         let color = theme.current_color(t);
         let correct_color = Color {
@@ -259,7 +298,7 @@ mod tests {
 
     #[test]
     fn current_color_is_correct_at_t_0_point_9_1_6_5() {
-        let theme = Theme::new(DEFAULT_STOPS.to_vec(), IDLE, InterpolationMethod::Lerp);
+        let theme = valid_theme();
         let t: f32 = 0.9165;
         let color = theme.current_color(t);
         let correct_color = Color { r: 102, g: 0, b: 0 };
