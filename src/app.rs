@@ -17,7 +17,7 @@ use crate::config::Config;
 use crate::timer::SessionState;
 
 pub struct Unfocol<F: Fn() -> Instant> {
-    timer: Timer<F>,
+    pub timer: Timer<F>,
     pub theme: Theme,
     settings_t: f32,
     settings_idle: bool,
@@ -113,7 +113,7 @@ impl Unfocol<fn() -> Instant> {
                             }
                             if ui
                                 .add(
-                                    egui::Slider::new(&mut self.config.settings.focus_time, 5..=99)
+                                    egui::Slider::new(&mut self.config.settings.focus_time, 1..=60)
                                         .text("Focus time duration"),
                                 )
                                 .changed()
