@@ -18,9 +18,10 @@ use crate::timer::SessionState;
 
 pub struct Unfocol<F: Fn() -> Instant> {
     timer: Timer<F>,
-    theme: Theme,
+    pub theme: Theme,
     settings_t: f32,
     settings_idle: bool,
+    pub show_clock: bool,
     config: Config,
     config_dir: PathBuf,
 }
@@ -32,18 +33,20 @@ impl Unfocol<fn() -> Instant> {
             theme: Theme::default(),
             settings_t: 0.0,
             settings_idle: false,
+            show_clock: false,
             config,
             config_dir,
         }
     }
 
     fn handle_inputs(&mut self, ctx: &egui::Context) {
-        let (toggle_state, open_settings, reset_timer, quit) = ctx.input(|i| {
+        let (toggle_state, open_settings, reset_timer, quit, mouse_over) = ctx.input(|i| {
             (
                 i.key_pressed(egui::Key::Space),
                 i.key_pressed(egui::Key::S) || i.key_pressed(egui::Key::Comma),
                 i.key_pressed(egui::Key::R),
                 i.key_pressed(egui::Key::Q),
+                i.pointer.hover_pos().is_some(),
             )
         });
         if toggle_state {
@@ -58,6 +61,7 @@ impl Unfocol<fn() -> Instant> {
         if quit {
             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
         }
+        self.show_clock = mouse_over;
     }
 
     fn render_settings(&mut self, ctx: &egui::Context) {
@@ -109,11 +113,8 @@ impl Unfocol<fn() -> Instant> {
                             }
                             if ui
                                 .add(
-                                    egui::Slider::new(
-                                        &mut self.config.settings.focus_time,
-                                        5..=100,
-                                    )
-                                    .text("Focus time duration"),
+                                    egui::Slider::new(&mut self.config.settings.focus_time, 5..=99)
+                                        .text("Focus time duration"),
                                 )
                                 .changed()
                             {
@@ -183,6 +184,7 @@ impl eframe::App for Unfocol<fn() -> Instant> {
         self.timer.update_state();
 
         self.render_settings(ui.ctx());
+        self.render_clock(ui.ctx());
 
         let current_color: Color = self.get_current_color();
         self.render_focus_window(current_color, ui);

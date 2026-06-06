@@ -1,4 +1,5 @@
 mod app;
+mod clock;
 mod color;
 mod config;
 mod timer;
