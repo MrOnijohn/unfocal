@@ -18,7 +18,6 @@ use crate::timer::SessionState;
 
 pub struct Unfocol<F: Fn() -> Instant> {
     pub timer: Timer<F>,
-    pub theme: Theme,
     settings_t: f32,
     settings_idle: bool,
     pub show_clock: bool,
@@ -30,7 +29,6 @@ impl Unfocol<fn() -> Instant> {
     pub fn new(config: Config, config_dir: PathBuf) -> Self {
         Self {
             timer: Timer::default(),
-            theme: Theme::default(),
             settings_t: 0.0,
             settings_idle: false,
             show_clock: false,
@@ -106,9 +104,6 @@ impl Unfocol<fn() -> Instant> {
                                     }
                                 });
                             if before != self.config.settings.selected_theme {
-                                self.theme = self.config.themes
-                                    [&self.config.settings.selected_theme]
-                                    .clone();
                                 self.save_settings().expect("Failed to save settings");
                             }
                             if ui
@@ -161,19 +156,23 @@ impl Unfocol<fn() -> Instant> {
     fn get_current_color(&self) -> Color {
         if self.config.settings.show_settings {
             if self.settings_idle {
-                self.theme.idle
+                self.active_theme().idle
             } else {
-                self.theme.current_color(self.settings_t)
+                self.active_theme().current_color(self.settings_t)
             }
         } else {
             match self.timer.state {
-                SessionState::Idle { .. } => self.theme.idle,
+                SessionState::Idle { .. } => self.active_theme().idle,
                 SessionState::Running { .. } => {
                     let t: f32 = self.timer.progress();
-                    self.theme.current_color(t)
+                    self.active_theme().current_color(t)
                 }
             }
         }
+    }
+
+    pub fn active_theme(&self) -> &Theme {
+        &self.config.themes[&self.config.settings.selected_theme]
     }
 }
 

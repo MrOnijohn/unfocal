@@ -15,7 +15,7 @@ impl Unfocol<fn() -> Instant> {
                     .interactable(false)
                     .show(ctx, |ui| {
                         Frame::new()
-                            .fill(self.theme.clock_bg.into())
+                            .fill(self.active_theme().clock_bg.into())
                             .show(ui, |ui| ui.label(clock))
                     });
             }
