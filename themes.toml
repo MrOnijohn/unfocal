@@ -49,6 +49,8 @@ color = "#008080"
 # Nord
 [themes.nord]
 idle = "#88c0d0" # nord8
+clock_bg = "#3b4252" # nord1
+clock_digits = "#eceff4" # nord6
 
 [[themes.nord.stops]]
 progress = 0.0

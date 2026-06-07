@@ -189,7 +189,7 @@ impl eframe::App for Unfocol<fn() -> Instant> {
         self.render_focus_window(current_color, ui);
 
         if matches!(self.timer.state, SessionState::Running { .. }) {
-            ui.ctx().request_repaint_after(Duration::from_secs(1));
+            ui.ctx().request_repaint_after(Duration::from_millis(500));
         }
     }
 }

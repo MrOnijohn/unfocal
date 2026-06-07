@@ -1,5 +1,5 @@
 use crate::app::Unfocol;
-use eframe::egui::{self, Align2, Area, Frame, Id, Vec2};
+use eframe::egui::{self, Align2, Area, Frame, Id, Margin, Vec2};
 use std::time::{Duration, Instant};
 
 impl Unfocol<fn() -> Instant> {
@@ -16,7 +16,15 @@ impl Unfocol<fn() -> Instant> {
                     .show(ctx, |ui| {
                         Frame::new()
                             .fill(self.active_theme().clock_bg.into())
-                            .show(ui, |ui| ui.label(clock))
+                            .inner_margin(Margin::symmetric(10, 7))
+                            .corner_radius(4)
+                            .show(ui, |ui| {
+                                ui.label(
+                                    egui::RichText::new(clock)
+                                        .font(egui::FontId::monospace(20.0))
+                                        .color(self.active_theme().clock_digits),
+                                )
+                            });
                     });
             }
         }
