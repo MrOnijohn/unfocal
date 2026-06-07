@@ -113,7 +113,7 @@ impl Unfocol<fn() -> Instant> {
                             }
                             if ui
                                 .add(
-                                    egui::Slider::new(&mut self.config.settings.focus_time, 1..=60)
+                                    egui::Slider::new(&mut self.config.settings.focus_time, 1..=99)
                                         .text("Focus time duration"),
                                 )
                                 .changed()
