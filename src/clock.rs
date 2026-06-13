@@ -1,15 +1,17 @@
 use crate::app::Unfocol;
+use crate::config::ShowClock;
 use eframe::egui::{self, Align2, Area, Frame, Id, Margin, Vec2};
 use std::time::{Duration, Instant};
 
 impl Unfocol<fn() -> Instant> {
     pub fn render_clock(&self, ctx: &egui::Context) {
-        let time = self.timer.remaining();
-        let clock = format_to_mmss(time);
+        match self.config.settings.show_clock {
+            ShowClock::Never => {}
+            ShowClock::OnMouseOver if !self.mouse_over => {}
+            _ => {
+                let time = self.timer.remaining();
+                let clock = format_to_mmss(time);
 
-        match self.show_clock {
-            false => {}
-            true => {
                 Area::new(Id::new("clock_overlay"))
                     .anchor(Align2::CENTER_CENTER, Vec2::ZERO)
                     .interactable(false)

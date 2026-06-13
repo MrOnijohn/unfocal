@@ -74,9 +74,17 @@ struct RawConfig {
     themes: HashMap<String, RawTheme>,
 }
 
+#[derive(PartialEq, Debug, Serialize, Deserialize, Clone)]
+pub enum ShowClock {
+    Never,
+    Always,
+    OnMouseOver,
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct Settings {
     pub show_settings: bool,
+    pub show_clock: ShowClock,
     pub focus_time: u32,
     pub selected_theme: String,
 }
@@ -85,6 +93,7 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             show_settings: true,
+            show_clock: ShowClock::OnMouseOver,
             focus_time: 30,
             selected_theme: "default".to_string(),
         }

@@ -13,15 +13,15 @@ use eframe::egui::ViewportId;
 use crate::Theme;
 use crate::Timer;
 use crate::color::Color;
-use crate::config::Config;
+use crate::config::{Config, ShowClock};
 use crate::timer::SessionState;
 
 pub struct Unfocol<F: Fn() -> Instant> {
     pub timer: Timer<F>,
     settings_t: f32,
     settings_idle: bool,
-    pub show_clock: bool,
-    config: Config,
+    pub mouse_over: bool,
+    pub config: Config,
     config_dir: PathBuf,
 }
 
@@ -31,7 +31,7 @@ impl Unfocol<fn() -> Instant> {
             timer: Timer::default(),
             settings_t: 0.0,
             settings_idle: false,
-            show_clock: false,
+            mouse_over: false,
             config,
             config_dir,
         }
@@ -59,7 +59,7 @@ impl Unfocol<fn() -> Instant> {
         if quit {
             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
         }
-        self.show_clock = mouse_over;
+        self.mouse_over = mouse_over;
     }
 
     fn render_settings(&mut self, ctx: &egui::Context) {
@@ -124,6 +124,30 @@ impl Unfocol<fn() -> Instant> {
                                 &mut self.settings_idle,
                                 "Preview idle color",
                             ));
+                            ui.end_row();
+                            let clock_before = self.config.settings.show_clock.clone();
+                            egui::ComboBox::from_label("Show remaining time")
+                                .selected_text(format!("{:?}", self.config.settings.show_clock))
+                                .show_ui(ui, |ui| {
+                                    ui.selectable_value(
+                                        &mut self.config.settings.show_clock,
+                                        ShowClock::OnMouseOver,
+                                        "On mouse over",
+                                    );
+                                    ui.selectable_value(
+                                        &mut self.config.settings.show_clock,
+                                        ShowClock::Never,
+                                        "Never",
+                                    );
+                                    ui.selectable_value(
+                                        &mut self.config.settings.show_clock,
+                                        ShowClock::Always,
+                                        "Always",
+                                    );
+                                });
+                            if clock_before != self.config.settings.show_clock {
+                                self.save_settings().expect("Failed to save settings")
+                            }
                         });
                 });
             });
