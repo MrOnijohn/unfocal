@@ -4,11 +4,11 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+eframe = { version = "0.34.2", features = ["glow"] }
 anyhow = "1.0.102"
 atomicwrites = "0.4.4"
 csscolorparser = "0.8.3"
 directories = "6.0.0"
-eframe = "0.34.2"
 egui_extras = "0.34.2"
 env_logger = "0.11.10"
 log = "0.4.29"

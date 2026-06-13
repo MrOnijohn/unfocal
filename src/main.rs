@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use anyhow::Context;
 use atomicwrites::replace_atomic;
 use directories::ProjectDirs;
-use eframe::egui;
+use eframe::{Renderer, egui};
 use log::info;
 use unfocol::{Config, DEFAULT_THEMES, Unfocol, load_settings, load_themes};
 
@@ -35,6 +35,11 @@ fn main() -> eframe::Result {
             .with_resizable(true)
             .with_movable_by_background(true),
         persist_window: true,
+        renderer: if cfg!(target_os = "linux") {
+            Renderer::Glow
+        } else {
+            Renderer::Wgpu
+        },
         ..Default::default()
     };
     eframe::run_native(
