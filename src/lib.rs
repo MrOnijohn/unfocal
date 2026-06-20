@@ -2,6 +2,7 @@ mod app;
 mod clock;
 mod color;
 mod config;
+mod settings;
 mod timer;
 
 pub use app::Unfocol;

@@ -45,7 +45,8 @@ impl TryFrom<RawTheme> for Theme {
             .stops
             .into_iter()
             .map(Stop::try_from)
-            .collect::<Result<Vec<Stop>, _>>()?;
+            .collect::<Result<Vec<Stop>, _>>()
+            .with_context(format!(""))?;
 
         Ok(Theme {
             idle,
