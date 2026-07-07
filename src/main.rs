@@ -36,8 +36,10 @@ fn main() -> eframe::Result {
             .with_movable_by_background(true),
         persist_window: true,
         renderer: if cfg!(target_os = "linux") {
+            info!("Linux detected, choosing Glow as renderer");
             Renderer::Glow
         } else {
+            info!("Choosing Wgpu as renderer");
             Renderer::Wgpu
         },
         ..Default::default()
@@ -66,7 +68,7 @@ fn ensure_themes_toml_exists(themes_toml: &Path, config_dir: &Path) -> Result<()
             .with_context(|| format!("Creating {}", tmp_file_path.display()))?;
         tmp_file
             .write_all(DEFAULT_THEMES.as_bytes())
-            .with_context(|| format!("Writing toml to {}", tmp_file_path.display()))?;
+            .with_context(|| format!("Writing default themes to {}", tmp_file_path.display()))?;
         replace_atomic(&tmp_file_path, themes_toml)
             .context("Replacing themes.toml with .themes.toml.tmp")?;
 

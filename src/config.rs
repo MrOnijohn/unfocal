@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
+use thiserror::Error;
 
 pub const DEFAULT_THEMES: &str = include_str!("../assets/themes.toml");
 
@@ -14,8 +15,44 @@ struct RawStop {
     progress: f32,
 }
 
+#[derive(Error, Debug)]
+enum ParseStopError {
+    #[error("Invalid progress value {value}")]
+    InvalidProgressValue { value: f32 },
+    #[error("Invalid hex value {hex_string}")]
+    InvalidHexValue {
+        hex_string: String,
+        #[source]
+        parse_color_error: csscolorparser::ParseColorError,
+    },
+}
+
+impl TryFrom<RawStop> for Stop {
+    type Error = ParseStopError;
+    fn try_from(raw_stop: RawStop) -> Result<Self, Self::Error> {
+        let color: Color =
+            raw_stop
+                .color
+                .parse()
+                .map_err(|cause| ParseStopError::InvalidHexValue {
+                    hex_string: raw_stop.color,
+                    parse_color_error: cause,
+                })?;
+        if !(0.0..=1.0).contains(&raw_stop.progress) {
+            return Err(ParseStopError::InvalidProgressValue {
+                value: raw_stop.progress,
+            });
+        }
+        Ok(Stop {
+            color,
+            progress: raw_stop.progress,
+        })
+    }
+}
+
 #[derive(Deserialize)]
 struct RawTheme {
+    // TODO: Decide whether I should store theme name as a field to return in case of errors
     idle: String,
     #[serde(default)]
     clock_bg: Option<String>,
@@ -23,6 +60,9 @@ struct RawTheme {
     clock_digits: Option<String>,
     stops: Vec<RawStop>,
 }
+
+#[derive(Error, Debug)]
+enum ParseThemeError {}
 
 impl TryFrom<RawTheme> for Theme {
     type Error = csscolorparser::ParseColorError;
@@ -45,8 +85,7 @@ impl TryFrom<RawTheme> for Theme {
             .stops
             .into_iter()
             .map(Stop::try_from)
-            .collect::<Result<Vec<Stop>, _>>()
-            .with_context(format!(""))?;
+            .collect::<Result<Vec<Stop>, _>>()?;
 
         Ok(Theme {
             idle,
@@ -54,18 +93,6 @@ impl TryFrom<RawTheme> for Theme {
             clock_digits,
             stops,
             interpolation_method: crate::color::InterpolationMethod::Lerp,
-        })
-    }
-}
-
-impl TryFrom<RawStop> for Stop {
-    type Error = csscolorparser::ParseColorError;
-    fn try_from(raw_stop: RawStop) -> Result<Self, Self::Error> {
-        let color: Color = raw_stop.color.parse()?;
-
-        Ok(Stop {
-            color,
-            progress: raw_stop.progress,
         })
     }
 }
@@ -150,7 +177,7 @@ fn try_load_themes(themes_toml: impl AsRef<Path>) -> Result<HashMap<String, Them
 }
 
 pub fn load_settings(settings_toml: impl AsRef<Path>) -> Settings {
-    // TODO Check if settings.toml exists and don't warn, but inform
+    // TODO: Check if settings.toml exists and don't warn, but inform
     match try_load_settings(settings_toml) {
         Ok(settings) => settings,
         Err(e) => {
