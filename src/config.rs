@@ -9,6 +9,16 @@ use thiserror::Error;
 
 pub const DEFAULT_THEMES: &str = include_str!("../assets/themes.toml");
 
+enum Message {
+    ErrorMessage {},
+}
+
+impl Message {
+    fn message_to_string(self) -> String {
+        todo!();
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 struct RawStop {
     color: String,
@@ -16,7 +26,7 @@ struct RawStop {
 }
 
 #[derive(Error, Debug)]
-enum ParseStopError {
+pub enum ParseStopError {
     #[error("Invalid progress value {value}")]
     InvalidProgressValue { value: f32 },
     #[error("Invalid hex value {hex_string}")]
@@ -52,7 +62,6 @@ impl TryFrom<RawStop> for Stop {
 
 #[derive(Deserialize)]
 struct RawTheme {
-    // TODO: Decide whether I should store theme name as a field to return in case of errors
     idle: String,
     #[serde(default)]
     clock_bg: Option<String>,
@@ -62,22 +71,61 @@ struct RawTheme {
 }
 
 #[derive(Error, Debug)]
-enum ParseThemeError {}
+pub enum ParseThemeError {
+    #[error("Invalid color value for idle: {idle_hex}")]
+    InvalidIdleValue {
+        idle_hex: String,
+        #[source]
+        parse_color_error: csscolorparser::ParseColorError,
+    },
+    #[error("Invalid color value for clock background: {clock_bg_hex}")]
+    InvalidClockBG {
+        clock_bg_hex: String,
+        #[source]
+        parse_color_error: csscolorparser::ParseColorError,
+    },
+    #[error("Invalid color value for clock digits: {clock_digits_hex}")]
+    InvalidClockDigits {
+        clock_digits_hex: String,
+        #[source]
+        parse_color_error: csscolorparser::ParseColorError,
+    },
+    #[error("Invalid stop")]
+    InvalidStop(#[from] ParseStopError),
+}
 
 impl TryFrom<RawTheme> for Theme {
-    type Error = csscolorparser::ParseColorError;
+    type Error = ParseThemeError;
     fn try_from(raw_theme: RawTheme) -> Result<Self, Self::Error> {
-        let idle: Color = raw_theme.idle.parse()?;
+        let idle: Color =
+            raw_theme
+                .idle
+                .parse()
+                .map_err(|cause| ParseThemeError::InvalidIdleValue {
+                    idle_hex: raw_theme.idle,
+                    parse_color_error: cause,
+                })?;
 
         let clock_bg: Color = raw_theme
             .clock_bg
-            .map(|s| s.parse())
+            .map(|s| {
+                s.parse().map_err(|cause| ParseThemeError::InvalidClockBG {
+                    clock_bg_hex: s,
+                    parse_color_error: cause,
+                })
+            })
             .transpose()?
             .unwrap_or(Color::BLACK);
 
         let clock_digits: Color = raw_theme
             .clock_digits
-            .map(|s| s.parse())
+            .map(|s| {
+                s.parse()
+                    .map_err(|cause| ParseThemeError::InvalidClockDigits {
+                        clock_digits_hex: s,
+                        parse_color_error: cause,
+                    })
+            })
             .transpose()?
             .unwrap_or(Color::WHITE);
 
@@ -149,35 +197,71 @@ impl Default for Config {
     }
 }
 
-pub fn load_themes(themes_toml: impl AsRef<Path>) -> HashMap<String, Theme> {
-    match try_load_themes(themes_toml) {
-        Ok(themes) => themes,
-        Err(e) => {
-            warn!("Failed to load themes: {e}");
-            warn!("Falling back to defaults");
-            let themes: HashMap<String, Theme> =
-                toml::from_str(DEFAULT_THEMES).expect("assets/themes.toml malformed");
-            themes
-        }
-    }
+#[derive(Error, Debug)]
+pub enum LoadThemesError {
+    #[error("Failed to read themes.toml")]
+    ReadTomlFailed(#[from] std::io::Error),
+    #[error("Failed to parse themes.toml")]
+    ParseTomlFailed(#[from] toml::de::Error),
+    #[error("Failed to parse {name}")]
+    InvalidTheme {
+        name: String,
+        #[source]
+        parse_theme_error: ParseThemeError,
+    },
 }
 
-fn try_load_themes(themes_toml: impl AsRef<Path>) -> Result<HashMap<String, Theme>, anyhow::Error> {
-    let toml_as_str = get_toml_as_str(themes_toml).context("Getting toml data from themes.toml")?;
-    let raw_config: RawConfig =
-        toml::from_str(&toml_as_str).with_context(|| format!("Parsing toml: {}", &toml_as_str))?;
+fn try_load_themes(
+    themes_toml: impl AsRef<Path>,
+) -> (HashMap<String, Theme>, Vec<LoadThemesError>) {
+    let toml_contents = match get_toml_as_str(themes_toml) {
+        Ok(toml_contents) => toml_contents,
+        Err(e) => return (HashMap::new(), vec![LoadThemesError::ReadTomlFailed(e)]),
+    };
 
-    let themes: HashMap<String, Theme> = raw_config
-        .themes
-        .into_iter()
-        .map(|(name, raw_theme)| Theme::try_from(raw_theme).map(|theme| (name, theme)))
-        .collect::<Result<HashMap<String, Theme>, _>>()
-        .context("Parsing hex rgb")?;
-    Ok(themes)
+    let raw_config: RawConfig = match toml::from_str(&toml_contents) {
+        Ok(raw_config) => raw_config,
+        Err(e) => return (HashMap::new(), vec![LoadThemesError::ParseTomlFailed(e)]),
+    };
+
+    let mut themes: HashMap<String, Theme> = HashMap::new();
+    let mut errors: Vec<LoadThemesError> = Vec::new();
+    for (name, raw_theme) in raw_config.themes.into_iter() {
+        match Theme::try_from(raw_theme) {
+            Ok(theme) => {
+                themes.insert(name, theme);
+            }
+            Err(e) => errors.push(LoadThemesError::InvalidTheme {
+                name,
+                parse_theme_error: e,
+            }),
+        };
+    }
+
+    (themes, errors)
+}
+
+pub fn load_themes(
+    themes_toml: impl AsRef<Path>,
+) -> (HashMap<String, Theme>, Vec<LoadThemesError>) {
+    let (themes, errors) = try_load_themes(&themes_toml);
+    if !themes.is_empty() {
+        (themes, errors)
+    } else {
+        warn!(
+            "Failed to load themes from {}",
+            themes_toml.as_ref().display()
+        );
+        warn!("Falling back to defaults");
+        let themes: HashMap<String, Theme> =
+            toml::from_str(DEFAULT_THEMES).expect("assets/themes.toml malformed");
+        (themes, errors)
+    }
 }
 
 pub fn load_settings(settings_toml: impl AsRef<Path>) -> Settings {
     // TODO: Check if settings.toml exists and don't warn, but inform
+    // TODO: Check if current_theme is in themes
     match try_load_settings(settings_toml) {
         Ok(settings) => settings,
         Err(e) => {
@@ -196,12 +280,9 @@ fn try_load_settings(settings_toml: impl AsRef<Path>) -> Result<Settings, anyhow
     Ok(settings)
 }
 
-fn get_toml_as_str(path: impl AsRef<Path>) -> Result<String, anyhow::Error> {
+fn get_toml_as_str(path: impl AsRef<Path>) -> Result<String, std::io::Error> {
     let path = path.as_ref();
-    let toml_as_str = fs::read_to_string(path)
-        .with_context(|| format!("Reading {} as a String", path.display()))?;
-
-    Ok(toml_as_str)
+    fs::read_to_string(path)
 }
 
 #[cfg(test)]
@@ -212,7 +293,7 @@ mod tests {
     fn load_themes_returns_valid_default_theme() {
         let test_file = "themes_test.toml";
         let theme_name = "default".to_string();
-        let themes = load_themes(test_file);
+        let (themes, _) = load_themes(test_file);
 
         let correct_idle = Color {
             r: 0,
@@ -287,22 +368,75 @@ mod tests {
     }
 
     #[test]
-    fn malformed_clock_bg_errors() {
+    fn malformed_clock_bg_produces_correct_error_variant() {
         let raw = RawTheme {
             clock_bg: Some("#0000000".into()),
             ..valid_raw_theme()
         };
 
-        assert!(Theme::try_from(raw).is_err());
+        assert!(matches!(
+            Theme::try_from(raw),
+            Err(ParseThemeError::InvalidClockBG { .. })
+        ));
     }
 
     #[test]
-    fn malformed_clock_digits_errors() {
+    fn malformed_clock_digits_produces_correct_error_variant() {
         let raw = RawTheme {
             clock_digits: Some("#fffffff".into()),
             ..valid_raw_theme()
         };
 
-        assert!(Theme::try_from(raw).is_err());
+        assert!(matches!(
+            Theme::try_from(raw),
+            Err(ParseThemeError::InvalidClockDigits { .. })
+        ));
+    }
+
+    #[test]
+    fn malformed_idle_color_produces_correct_error_variant() {
+        let raw = RawTheme {
+            idle: "#0000000".into(),
+            ..valid_raw_theme()
+        };
+
+        assert!(matches!(
+            Theme::try_from(raw),
+            Err(ParseThemeError::InvalidIdleValue { .. })
+        ));
+    }
+
+    #[cfg(test)]
+    fn valid_raw_stop() -> RawStop {
+        RawStop {
+            progress: 0.5,
+            color: "#555555".into(),
+        }
+    }
+
+    #[test]
+    fn raw_stop_progress_value_too_high_produces_correct_error_variant() {
+        let raw = RawStop {
+            progress: 1.1,
+            ..valid_raw_stop()
+        };
+
+        assert!(matches!(
+            Stop::try_from(raw),
+            Err(ParseStopError::InvalidProgressValue { .. })
+        ));
+    }
+
+    #[test]
+    fn raw_stop_progress_value_negative_produces_correct_error_variant() {
+        let raw = RawStop {
+            progress: -0.5,
+            ..valid_raw_stop()
+        };
+
+        assert!(matches!(
+            Stop::try_from(raw),
+            Err(ParseStopError::InvalidProgressValue { .. })
+        ));
     }
 }

@@ -19,7 +19,8 @@ fn main() -> eframe::Result {
     let settings_toml = config_dir.join("settings.toml");
 
     info!("Loading themes from {}", themes_toml.display());
-    let themes = load_themes(themes_toml);
+    // TODO: Do something with the errors here
+    let (themes, _) = load_themes(themes_toml);
     info!("Loading settings from {}", settings_toml.display());
     let settings = load_settings(settings_toml);
 
