@@ -92,6 +92,12 @@ pub enum ParseThemeError {
     },
     #[error("Invalid stop")]
     InvalidStop(#[from] ParseStopError),
+    #[error("Stops must start at progress 0.0 and end at 1.0, found {first} and {last}")]
+    InvalidProgressBounds { first: f32, last: f32 },
+    #[error("Found {stop_2} following {stop_1}")]
+    NonMonotonicStops { stop_1: f32, stop_2: f32 },
+    #[error("Found only {num_stops} stops")]
+    TooFewStops { num_stops: usize },
 }
 
 impl TryFrom<RawTheme> for Theme {
@@ -134,6 +140,31 @@ impl TryFrom<RawTheme> for Theme {
             .into_iter()
             .map(Stop::try_from)
             .collect::<Result<Vec<Stop>, _>>()?;
+
+        match stops.as_slice() {
+            [first, .., last] => {
+                if !(first.progress == 0.0 && last.progress == 1.0) {
+                    return Err(ParseThemeError::InvalidProgressBounds {
+                        first: first.progress,
+                        last: last.progress,
+                    });
+                }
+            }
+            _ => {
+                return Err(ParseThemeError::TooFewStops {
+                    num_stops: stops.len(),
+                });
+            }
+        }
+
+        for window in stops.windows(2) {
+            if !(window[0].progress < window[1].progress) {
+                return Err(ParseThemeError::NonMonotonicStops {
+                    stop_1: window[0].progress,
+                    stop_2: window[1].progress,
+                });
+            }
+        }
 
         Ok(Theme {
             idle,
@@ -200,7 +231,7 @@ impl Default for Config {
 #[derive(Error, Debug)]
 pub enum LoadThemesError {
     #[error("Failed to read themes.toml")]
-    ReadTomlFailed(#[from] std::io::Error),
+    FileUnreadable(#[from] std::io::Error),
     #[error("Failed to parse themes.toml")]
     ParseTomlFailed(#[from] toml::de::Error),
     #[error("Failed to parse {name}")]
@@ -211,14 +242,36 @@ pub enum LoadThemesError {
     },
 }
 
+pub fn load_themes(
+    themes_toml: impl AsRef<Path>,
+) -> (HashMap<String, Theme>, Vec<LoadThemesError>) {
+    let (themes, errors) = try_load_themes(&themes_toml);
+    if !themes.is_empty() {
+        (themes, errors)
+    } else {
+        warn!(
+            "Failed to load themes from {}",
+            themes_toml.as_ref().display()
+        );
+        warn!("Falling back to defaults");
+        let themes: HashMap<String, Theme> =
+            toml::from_str(DEFAULT_THEMES).expect("assets/themes.toml malformed");
+        (themes, errors)
+    }
+}
+
 fn try_load_themes(
     themes_toml: impl AsRef<Path>,
 ) -> (HashMap<String, Theme>, Vec<LoadThemesError>) {
     let toml_contents = match get_toml_as_str(themes_toml) {
         Ok(toml_contents) => toml_contents,
-        Err(e) => return (HashMap::new(), vec![LoadThemesError::ReadTomlFailed(e)]),
+        Err(e) => return (HashMap::new(), vec![LoadThemesError::FileUnreadable(e)]),
     };
 
+    parse_themes(toml_contents)
+}
+
+fn parse_themes(toml_contents: String) -> (HashMap<String, Theme>, Vec<LoadThemesError>) {
     let raw_config: RawConfig = match toml::from_str(&toml_contents) {
         Ok(raw_config) => raw_config,
         Err(e) => return (HashMap::new(), vec![LoadThemesError::ParseTomlFailed(e)]),
@@ -239,24 +292,6 @@ fn try_load_themes(
     }
 
     (themes, errors)
-}
-
-pub fn load_themes(
-    themes_toml: impl AsRef<Path>,
-) -> (HashMap<String, Theme>, Vec<LoadThemesError>) {
-    let (themes, errors) = try_load_themes(&themes_toml);
-    if !themes.is_empty() {
-        (themes, errors)
-    } else {
-        warn!(
-            "Failed to load themes from {}",
-            themes_toml.as_ref().display()
-        );
-        warn!("Falling back to defaults");
-        let themes: HashMap<String, Theme> =
-            toml::from_str(DEFAULT_THEMES).expect("assets/themes.toml malformed");
-        (themes, errors)
-    }
 }
 
 pub fn load_settings(settings_toml: impl AsRef<Path>) -> Settings {
@@ -438,5 +473,113 @@ mod tests {
             Stop::try_from(raw),
             Err(ParseStopError::InvalidProgressValue { .. })
         ));
+    }
+
+    fn valid_themes_toml() -> String {
+        "
+        [themes.forest]
+        idle = \"#003300\"
+
+        [[themes.forest.stops]]
+        progress = 0.0
+        color = \"#00cc00\"
+
+        [[themes.forest.stops]]
+        progress = 1.0
+        color = \"#000000\"
+
+        [themes.ocean]
+        idle = \"#001a33\"
+
+        [[themes.ocean.stops]]
+        progress = 0.0
+        color = \"#0088cc\"
+
+        [[themes.ocean.stops]]
+        progress = 1.0
+        color = \"#000011\"
+        "
+        .to_string()
+    }
+
+    fn one_bad_theme() -> String {
+        "
+        [themes.forest]
+        idle = \"#003300\"
+
+        [[themes.forest.stops]]
+        progress = 0.0
+        color = \"not-a-color\"
+
+        [[themes.forest.stops]]
+        progress = 1.0
+        color = \"#000000\"
+
+        [themes.ocean]
+        idle = \"#001a33\"
+
+        [[themes.ocean.stops]]
+        progress = 0.0
+        color = \"#0088cc\"
+
+        [[themes.ocean.stops]]
+        progress = 1.0
+        color = \"#000011\"
+        "
+        .to_string()
+    }
+
+    fn invalid_themes_toml() -> String {
+        "
+        [themes.forest]
+        idle = \"#003300\"
+
+        [themes.forest.stops]
+        progress = 0.0
+        color = \"#00cc00\"
+        "
+        .to_string()
+    }
+
+    fn empty_themes_toml() -> String {
+        "
+        [themes]
+        "
+        .to_string()
+    }
+
+    fn no_valid_themes() -> String {
+        "
+        [themes.forest]
+        idle = \"not-a-color\"
+
+        [[themes.forest.stops]]
+        progress = 0.0
+        color = \"#00cc00\"
+
+        [themes.ocean]
+        idle = \"#001a33\"
+
+        [[themes.ocean.stops]]
+        progress = 1.1
+        color = \"#000011\"
+        "
+        .to_string()
+    }
+
+    #[test]
+    fn valid_themes_toml_parses_correctly() {
+        let toml_contents = valid_themes_toml();
+        let (themes, errors) = parse_themes(toml_contents);
+
+        assert!(themes.len() == 2 && errors.is_empty());
+    }
+
+    #[test]
+    fn invalid_themes_are_skipped() {
+        let toml_contents = one_bad_theme();
+        let (themes, errors) = parse_themes(toml_contents);
+
+        assert!(themes.len() == 1 && errors.len() == 1);
     }
 }

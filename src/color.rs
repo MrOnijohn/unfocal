@@ -1,6 +1,7 @@
 use eframe::egui;
 use serde::{Deserialize, Serialize};
 
+// TODO: Make Theme::default() use these constants?
 #[cfg(test)]
 pub const IDLE: Color = Color {
     r: 0,
