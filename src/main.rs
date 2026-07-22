@@ -22,7 +22,7 @@ fn main() -> eframe::Result {
     // TODO: Do something with the errors here
     let (themes, _) = load_themes(themes_toml);
     info!("Loading settings from {}", settings_toml.display());
-    let settings = load_settings(settings_toml);
+    let (settings, _) = load_settings(settings_toml);
 
     let config = Config::new(themes, settings);
 
