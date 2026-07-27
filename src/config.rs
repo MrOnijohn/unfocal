@@ -1,4 +1,5 @@
 use crate::color::{Color, Stop, Theme};
+use displaydoc::Display;
 use log::warn;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -226,11 +227,7 @@ pub enum LoadThemesError {
         io_error: std::io::Error,
     },
     #[error("Failed to parse themes.toml")]
-    ParseTomlFailed {
-        toml_contents: String,
-        #[source]
-        parsing_error: toml::de::Error,
-    },
+    ParseTomlFailed(#[from] toml::de::Error),
     #[error("Failed to parse {name}")]
     InvalidTheme {
         name: String,
@@ -283,13 +280,7 @@ fn parse_themes(toml_contents: String) -> (HashMap<String, Theme>, Vec<LoadTheme
     let raw_config: RawConfig = match toml::from_str(&toml_contents) {
         Ok(raw_config) => raw_config,
         Err(e) => {
-            return (
-                HashMap::new(),
-                vec![LoadThemesError::ParseTomlFailed {
-                    toml_contents,
-                    parsing_error: e,
-                }],
-            );
+            return (HashMap::new(), vec![LoadThemesError::ParseTomlFailed(e)]);
         }
     };
 
@@ -318,8 +309,11 @@ pub enum LoadSettingsError {
     ParseTomlFailed(#[from] toml::de::Error),
 }
 
+#[derive(Debug, Display)]
 pub enum SettingsCorrection {
+    /// The focus_time value was out of bounds ({value}), corrected to 25.
     InvalidFocusTime { value: u32 },
+    /// The theme '{non_existing_theme}' was not found, default theme selected.
     InvalidSelectedTheme { non_existing_theme: String },
 }
 
@@ -328,7 +322,7 @@ pub enum SettingsLoadingOutcome {
         corrections: Vec<SettingsCorrection>,
     },
     Defaulted {
-        error: LoadSettingsError,
+        load_settings_error: LoadSettingsError,
     },
 }
 
@@ -341,9 +335,11 @@ pub fn load_settings(settings_toml: impl AsRef<Path>) -> (Settings, SettingsLoad
                 SettingsLoadingOutcome::ParsedAndLoaded { corrections },
             )
         }
-        Err(error) => (
+        Err(load_settings_error) => (
             Settings::default(),
-            SettingsLoadingOutcome::Defaulted { error },
+            SettingsLoadingOutcome::Defaulted {
+                load_settings_error,
+            },
         ),
     }
 }
