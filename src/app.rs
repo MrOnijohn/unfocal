@@ -3,11 +3,11 @@ use std::time::{Duration, Instant};
 
 use eframe::egui;
 
-use crate::Theme;
 use crate::Timer;
 use crate::color::Color;
 use crate::config::Config;
 use crate::timer::SessionState;
+use crate::{Message, Theme};
 
 pub struct Unfocol<F: Fn() -> Instant> {
     pub timer: Timer<F>,
@@ -16,10 +16,11 @@ pub struct Unfocol<F: Fn() -> Instant> {
     pub mouse_over: bool,
     pub config: Config,
     pub config_dir: PathBuf,
+    pub messages: Vec<Message>,
 }
 
 impl Unfocol<fn() -> Instant> {
-    pub fn new(config: Config, config_dir: PathBuf) -> Self {
+    pub fn new(config: Config, config_dir: PathBuf, messages: Vec<Message>) -> Self {
         Self {
             timer: Timer::default(),
             settings_t: 0.0,
@@ -27,6 +28,7 @@ impl Unfocol<fn() -> Instant> {
             mouse_over: false,
             config,
             config_dir,
+            messages,
         }
     }
 

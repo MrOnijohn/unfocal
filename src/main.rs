@@ -7,7 +7,9 @@ use atomicwrites::replace_atomic;
 use directories::ProjectDirs;
 use eframe::{Renderer, egui};
 use log::info;
-use unfocol::{Config, DEFAULT_THEMES, Unfocol, load_settings, load_themes};
+use unfocol::{
+    Config, DEFAULT_THEMES, Message, Unfocol, load_settings, load_themes, sanitize_selected_theme,
+};
 
 fn main() -> eframe::Result {
     env_logger::init();
@@ -19,10 +21,23 @@ fn main() -> eframe::Result {
     let settings_toml = config_dir.join("settings.toml");
 
     info!("Loading themes from {}", themes_toml.display());
-    // TODO: Do something with the errors here
-    let (themes, _) = load_themes(themes_toml);
+    let (themes, load_theme_errors) = load_themes(themes_toml);
     info!("Loading settings from {}", settings_toml.display());
-    let (settings, _) = load_settings(settings_toml);
+    let (settings, settings_loading_outcome) = load_settings(settings_toml);
+
+    let mut messages: Vec<Message> = load_theme_errors
+        .into_iter()
+        .map(Message::from_load_themes_error)
+        .collect();
+    messages.extend(Message::from_settings_loading_outcome(
+        settings_loading_outcome,
+    ));
+
+    let (settings, correction) = sanitize_selected_theme(settings, &themes);
+    if let Some(correction) = correction {
+        let message = Message::from_settings_correction(correction);
+        messages.push(message);
+    }
 
     let config = Config::new(themes, settings);
 
@@ -48,7 +63,7 @@ fn main() -> eframe::Result {
     eframe::run_native(
         "Unfocol",
         options,
-        Box::new(|_cc| Ok(Box::new(Unfocol::new(config, config_dir)))),
+        Box::new(|_cc| Ok(Box::new(Unfocol::new(config, config_dir, messages)))),
     )
 }
 

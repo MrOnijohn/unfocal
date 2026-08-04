@@ -1,5 +1,6 @@
 use crate::config::{
-    LoadSettingsError, LoadThemesError, ParseStopError, ParseThemeError, SettingsLoadingOutcome,
+    LoadSettingsError, LoadThemesError, ParseStopError, ParseThemeError, SettingsCorrection,
+    SettingsLoadingOutcome,
 };
 
 fn default_themes_loaded() -> &'static str {
@@ -29,7 +30,7 @@ pub struct Message {
 }
 
 impl Message {
-    fn from_load_themes_error(error: LoadThemesError) -> Self {
+    pub fn from_load_themes_error(error: LoadThemesError) -> Self {
         match error {
             LoadThemesError::FileUnreadable { file, io_error } => {
                 let message = format!(
@@ -104,9 +105,12 @@ impl Message {
         }
     }
 
-    fn from_settings_loading_outcome(outcome: SettingsLoadingOutcome) -> Self {
+    pub fn from_settings_loading_outcome(outcome: SettingsLoadingOutcome) -> Option<Self> {
         match outcome {
             SettingsLoadingOutcome::ParsedAndLoaded { corrections } => {
+                if corrections.is_empty() {
+                    return None;
+                }
                 let details: String = corrections
                     .into_iter()
                     .map(|c| c.to_string())
@@ -117,7 +121,7 @@ impl Message {
                     "Loading settings from settings.toml needed some correction(s):\n{details}"
                 );
                 let severity = Severity::Warning;
-                Self { message, severity }
+                Some(Self { message, severity })
             }
             SettingsLoadingOutcome::Defaulted {
                 load_settings_error,
@@ -139,8 +143,18 @@ impl Message {
                     }
                 };
                 let severity = Severity::Error;
-                Self { message, severity }
+                Some(Self { message, severity })
             }
+        }
+    }
+
+    pub fn from_settings_correction(correction: SettingsCorrection) -> Self {
+        Self {
+            message: format!(
+                "Loading settings from settings.toml needed a correction:\n{}",
+                correction
+            ),
+            severity: Severity::Warning,
         }
     }
 }
@@ -148,19 +162,59 @@ impl Message {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::{Error, ErrorKind};
+    use crate::config::{Settings, SettingsCorrection};
 
     #[test]
-    fn missing_settings_toml_returns_correct_error() {
-        let io_error = Error::new(ErrorKind::NotFound, "No such file or directory");
+    fn missing_settings_toml_produces_correct_message() {
+        let io_error =
+            std::io::Error::new(std::io::ErrorKind::NotFound, "No such file or directory");
         let load_settings_error = LoadSettingsError::FileUnreadable(io_error);
         let outcome = SettingsLoadingOutcome::Defaulted {
             load_settings_error,
         };
 
-        let message = Message::from_settings_loading_outcome(outcome);
+        let message = Message::from_settings_loading_outcome(outcome).unwrap();
 
         assert!(matches!(message.severity, Severity::Error));
-        assert!(message.message.contains("No such file or directory"));
+        assert!(message.message.contains("Reading settings.toml"));
+    }
+
+    #[test]
+    fn invalid_toml_produces_correct_message() {
+        let toml_as_str = "invalid toml";
+        let parse_toml_error = toml::from_str::<Settings>(toml_as_str).unwrap_err();
+        let load_settings_error = LoadSettingsError::ParseTomlFailed(parse_toml_error);
+        let outcome = SettingsLoadingOutcome::Defaulted {
+            load_settings_error,
+        };
+
+        let message = Message::from_settings_loading_outcome(outcome).unwrap();
+
+        assert!(matches!(message.severity, Severity::Error));
+        assert!(message.message.contains("Parsing the contents"));
+    }
+
+    #[test]
+    fn invalid_focus_time_produces_correct_message() {
+        let value = 100;
+        let corrections = vec![SettingsCorrection::InvalidFocusTime { value }];
+        let outcome = SettingsLoadingOutcome::ParsedAndLoaded { corrections };
+
+        let message = Message::from_settings_loading_outcome(outcome).unwrap();
+
+        assert!(matches!(message.severity, Severity::Warning));
+        assert!(message.message.contains("corrected to 25"))
+    }
+
+    #[test]
+    fn missing_selected_theme_produces_correct_message() {
+        let non_existing_theme = "cauliflower".to_string();
+        let corrections = vec![SettingsCorrection::InvalidSelectedTheme { non_existing_theme }];
+        let outcome = SettingsLoadingOutcome::ParsedAndLoaded { corrections };
+
+        let message = Message::from_settings_loading_outcome(outcome).unwrap();
+
+        assert!(matches!(message.severity, Severity::Warning));
+        assert!(message.message.contains("cauliflower"));
     }
 }

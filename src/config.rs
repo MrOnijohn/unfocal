@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 use thiserror::Error;
 
 pub const DEFAULT_THEMES: &str = include_str!("../assets/themes.toml");
+const DEFAULT_THEME: &str = "default";
 
 #[derive(Serialize, Deserialize)]
 struct RawStop {
@@ -178,7 +179,7 @@ pub enum ShowClock {
     OnMouseOver,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Settings {
     pub show_settings: bool,
     pub show_clock: ShowClock,
@@ -192,7 +193,7 @@ impl Default for Settings {
             show_settings: true,
             show_clock: ShowClock::OnMouseOver,
             focus_time: 25,
-            selected_theme: "default".to_string(),
+            selected_theme: DEFAULT_THEME.to_string(),
         }
     }
 }
@@ -374,6 +375,20 @@ fn sanitize_settings(mut settings: Settings) -> (Settings, Vec<SettingsCorrectio
     }
 }
 
+pub fn sanitize_selected_theme(
+    mut settings: Settings,
+    themes: &HashMap<String, Theme>,
+) -> (Settings, Option<SettingsCorrection>) {
+    if !themes.contains_key(&settings.selected_theme) {
+        let non_existing_theme = settings.selected_theme.clone();
+        settings.selected_theme = DEFAULT_THEME.to_string();
+        let correction = SettingsCorrection::InvalidSelectedTheme { non_existing_theme };
+        (settings, Some(correction))
+    } else {
+        (settings, None)
+    }
+}
+
 fn get_toml_as_str(path: impl AsRef<Path>) -> Result<String, std::io::Error> {
     let path = path.as_ref();
     fs::read_to_string(path)
@@ -410,7 +425,7 @@ mod tests {
     fn load_themes_returns_valid_default_theme() {
         let toml_contents = default_theme();
         let (themes, errors) = parse_themes(toml_contents);
-        let theme_name = "default".to_string();
+        let theme_name = DEFAULT_THEME.to_string();
 
         let correct_idle = Color {
             r: 0,
@@ -821,7 +836,7 @@ mod tests {
             show_settings: true,
             focus_time: 34,
             show_clock: ShowClock::Never,
-            selected_theme: "default".into(),
+            selected_theme: DEFAULT_THEME.into(),
         }
     }
 
