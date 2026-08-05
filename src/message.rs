@@ -162,7 +162,7 @@ impl Message {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{Settings, SettingsCorrection};
+    use crate::config::Settings;
 
     #[test]
     fn missing_settings_toml_produces_correct_message() {

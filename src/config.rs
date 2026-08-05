@@ -242,8 +242,9 @@ pub enum LoadThemesError {
 pub fn load_themes(
     themes_toml: impl AsRef<Path>,
 ) -> (HashMap<String, Theme>, Vec<LoadThemesError>) {
-    let (themes, mut errors) = try_load_themes(&themes_toml);
+    let (mut themes, mut errors) = try_load_themes(&themes_toml);
     if !themes.is_empty() {
+        ensure_default_theme_exists(&mut themes);
         (themes, errors)
     } else {
         warn!(
@@ -251,10 +252,16 @@ pub fn load_themes(
             themes_toml.as_ref().display()
         );
         warn!("Falling back to defaults");
-        let themes: HashMap<String, Theme> =
-            toml::from_str(DEFAULT_THEMES).expect("assets/themes.toml malformed");
+        let themes = default_themes();
         errors.push(LoadThemesError::NoThemesDefined);
         (themes, errors)
+    }
+}
+
+fn ensure_default_theme_exists(themes: &mut HashMap<String, Theme>) {
+    let default_theme = default_themes().remove(DEFAULT_THEME).unwrap();
+    if !themes.contains_key(DEFAULT_THEME) {
+        themes.insert(DEFAULT_THEME.to_string(), default_theme.clone());
     }
 }
 
@@ -300,6 +307,12 @@ fn parse_themes(toml_contents: String) -> (HashMap<String, Theme>, Vec<LoadTheme
     }
 
     (themes, errors)
+}
+
+fn default_themes() -> HashMap<String, Theme> {
+    let (themes, errors) = parse_themes(DEFAULT_THEMES.to_string());
+    debug_assert!(errors.is_empty());
+    themes
 }
 
 #[derive(Error, Debug)]
@@ -381,7 +394,8 @@ pub fn sanitize_selected_theme(
 ) -> (Settings, Option<SettingsCorrection>) {
     if !themes.contains_key(&settings.selected_theme) {
         let non_existing_theme = settings.selected_theme.clone();
-        settings.selected_theme = DEFAULT_THEME.to_string();
+        let default = DEFAULT_THEME.to_string();
+        settings.selected_theme = default;
         let correction = SettingsCorrection::InvalidSelectedTheme { non_existing_theme };
         (settings, Some(correction))
     } else {
@@ -916,5 +930,28 @@ mod tests {
         let error = try_load_settings(settings_toml);
 
         assert!(matches!(error, Err(LoadSettingsError::FileUnreadable(..))));
+    }
+
+    #[test]
+    fn valid_selected_theme_passes_sanitization() {
+        let themes = default_themes();
+        let settings = Settings::default();
+        let (settings, correction) = sanitize_selected_theme(settings, &themes);
+
+        assert!(correction.is_none());
+        assert!(settings.selected_theme.contains("default"));
+    }
+
+    #[test]
+    fn missing_selected_theme_gets_corrected() {
+        let settings = Settings {
+            selected_theme: "a_missing_theme".to_string(),
+            ..valid_settings()
+        };
+        let themes = default_themes();
+        let (settings, correction) = sanitize_selected_theme(settings, &themes);
+
+        assert_eq!(settings.selected_theme, DEFAULT_THEME);
+        assert!(correction.unwrap().to_string().contains("a_missing_theme"));
     }
 }
