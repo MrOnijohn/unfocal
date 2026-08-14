@@ -3,6 +3,7 @@ mod clock;
 mod color;
 mod config;
 mod message;
+mod notifications;
 mod settings;
 mod timer;
 

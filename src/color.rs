@@ -1,26 +1,19 @@
 use eframe::egui;
 use serde::{Deserialize, Serialize};
 
-// TODO: Make Theme::default() use these constants?
-#[cfg(test)]
 pub const IDLE: Color = Color {
     r: 0,
     g: 204,
     b: 204,
 };
-#[cfg(test)]
 pub const STOP_0: Color = Color { r: 0, g: 204, b: 0 };
-#[cfg(test)]
 pub const STOP_1: Color = Color {
     r: 204,
     g: 204,
     b: 0,
 };
-#[cfg(test)]
 pub const STOP_2: Color = Color { r: 204, g: 0, b: 0 };
-#[cfg(test)]
 pub const STOP_3: Color = Color { r: 0, g: 0, b: 0 };
-#[cfg(test)]
 pub const DEFAULT_STOPS: &[Stop] = &[
     Stop {
         color: STOP_0,
@@ -151,33 +144,8 @@ impl Theme {
 impl Default for Theme {
     fn default() -> Self {
         Self {
-            idle: Color {
-                r: 0,
-                g: 204,
-                b: 204,
-            },
-            stops: vec![
-                Stop {
-                    progress: 0.0,
-                    color: Color { r: 0, g: 204, b: 0 },
-                },
-                Stop {
-                    progress: 0.5,
-                    color: Color {
-                        r: 204,
-                        g: 204,
-                        b: 0,
-                    },
-                },
-                Stop {
-                    progress: 0.833,
-                    color: Color { r: 204, g: 0, b: 0 },
-                },
-                Stop {
-                    progress: 1.0,
-                    color: Color { r: 0, g: 0, b: 0 },
-                },
-            ],
+            idle: IDLE,
+            stops: DEFAULT_STOPS.to_vec(),
             clock_bg: Color::BLACK,
             clock_digits: Color::WHITE,
             interpolation_method: crate::color::InterpolationMethod::Lerp,

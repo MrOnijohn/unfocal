@@ -1,6 +1,6 @@
 use crate::color::{Color, Stop, Theme};
 use displaydoc::Display;
-use log::warn;
+use log::info;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 use thiserror::Error;
 
 pub const DEFAULT_THEMES: &str = include_str!("../assets/themes.toml");
+const DEFAULT_THEME_TOML: &str = include_str!("../assets/default_theme.toml");
 const DEFAULT_THEME: &str = "default";
 
 #[derive(Serialize, Deserialize)]
@@ -179,7 +180,7 @@ pub enum ShowClock {
     OnMouseOver,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct Settings {
     pub show_settings: bool,
     pub show_clock: ShowClock,
@@ -235,34 +236,21 @@ pub enum LoadThemesError {
         #[source]
         parse_theme_error: ParseThemeError,
     },
-    #[error("No themes parsed from themes.toml")]
-    NoThemesDefined,
 }
 
 pub fn load_themes(
     themes_toml: impl AsRef<Path>,
 ) -> (HashMap<String, Theme>, Vec<LoadThemesError>) {
-    let (mut themes, mut errors) = try_load_themes(&themes_toml);
-    if !themes.is_empty() {
-        ensure_default_theme_exists(&mut themes);
-        (themes, errors)
-    } else {
-        warn!(
-            "Failed to load themes from {}",
-            themes_toml.as_ref().display()
-        );
-        warn!("Falling back to defaults");
-        let themes = default_themes();
-        errors.push(LoadThemesError::NoThemesDefined);
-        (themes, errors)
+    let (mut themes, errors) = try_load_themes(&themes_toml);
+    if themes.is_empty() && errors.is_empty() {
+        info!("themes.toml was empty.");
     }
-}
-
-fn ensure_default_theme_exists(themes: &mut HashMap<String, Theme>) {
-    let default_theme = default_themes().remove(DEFAULT_THEME).unwrap();
-    if !themes.contains_key(DEFAULT_THEME) {
-        themes.insert(DEFAULT_THEME.to_string(), default_theme.clone());
+    if themes.contains_key(DEFAULT_THEME) {
+        info!("Found user defined 'default' theme, replacing.");
     }
+    // TODO! Check for user Omarchy theme, and replace
+    themes.insert(DEFAULT_THEME.to_string(), default_theme());
+    (themes, errors)
 }
 
 fn try_load_themes(
@@ -311,8 +299,24 @@ fn parse_themes(toml_contents: String) -> (HashMap<String, Theme>, Vec<LoadTheme
 
 fn default_themes() -> HashMap<String, Theme> {
     let (themes, errors) = parse_themes(DEFAULT_THEMES.to_string());
-    debug_assert!(errors.is_empty());
+    debug_assert!(
+        errors.is_empty(),
+        "Default themes did not parse correctly {errors:?}"
+    );
     themes
+}
+
+fn default_theme() -> Theme {
+    let (mut themes, errors) = parse_themes(DEFAULT_THEME_TOML.to_string());
+    debug_assert!(errors.is_empty(), "default_theme.toml malformed {errors:?}");
+    debug_assert_eq!(
+        themes.len(),
+        1,
+        "default_theme.toml contains more than one theme"
+    );
+    themes
+        .remove(DEFAULT_THEME)
+        .expect("Default theme missing from default_theme.toml")
 }
 
 #[derive(Error, Debug)]
@@ -394,8 +398,7 @@ pub fn sanitize_selected_theme(
 ) -> (Settings, Option<SettingsCorrection>) {
     if !themes.contains_key(&settings.selected_theme) {
         let non_existing_theme = settings.selected_theme.clone();
-        let default = DEFAULT_THEME.to_string();
-        settings.selected_theme = default;
+        settings.selected_theme = DEFAULT_THEME.to_string();
         let correction = SettingsCorrection::InvalidSelectedTheme { non_existing_theme };
         (settings, Some(correction))
     } else {
@@ -412,7 +415,7 @@ fn get_toml_as_str(path: impl AsRef<Path>) -> Result<String, std::io::Error> {
 mod tests {
     use super::*;
 
-    fn default_theme() -> String {
+    fn default_theme_as_str() -> String {
         r##"
         [themes.default]
         idle = "#00cccc"
@@ -437,7 +440,7 @@ mod tests {
     }
     #[test]
     fn load_themes_returns_valid_default_theme() {
-        let toml_contents = default_theme();
+        let toml_contents = default_theme_as_str();
         let (themes, errors) = parse_themes(toml_contents);
         let theme_name = DEFAULT_THEME.to_string();
 
@@ -711,7 +714,7 @@ mod tests {
         .to_string()
     }
 
-    fn one_bad_theme() -> String {
+    fn one_bad_theme_toml() -> String {
         r##"
         [themes.forest]
         idle = "#003300"
@@ -757,7 +760,7 @@ mod tests {
         .to_string()
     }
 
-    fn all_invalid_themes() -> String {
+    fn all_invalid_themes_toml() -> String {
         r##"
         [themes.forest]
         idle = "not-a-color"
@@ -787,7 +790,7 @@ mod tests {
 
     #[test]
     fn one_bad_theme_returns_one_theme_and_invalid_theme_error() {
-        let toml_contents = one_bad_theme();
+        let toml_contents = one_bad_theme_toml();
         let (themes, errors) = parse_themes(toml_contents);
 
         assert_eq!(themes.len(), 1);
@@ -814,7 +817,7 @@ mod tests {
 
     #[test]
     fn all_invalid_themes_returns_empty_themes_and_two_errors() {
-        let toml_contents = all_invalid_themes();
+        let toml_contents = all_invalid_themes_toml();
         let (themes, errors) = parse_themes(toml_contents);
 
         assert!(themes.is_empty());
@@ -857,10 +860,10 @@ mod tests {
     #[test]
     fn valid_settings_passes_sanitization() {
         let settings = valid_settings();
-        let _unchanged_settings = valid_settings();
+        let unchanged_settings = valid_settings();
         let (cleaned_settings, corrections) = sanitize_settings(settings);
 
-        assert!(matches!(cleaned_settings, _unchanged_settings));
+        assert_eq!(cleaned_settings, unchanged_settings);
         assert_eq!(corrections.len(), 0);
     }
 
@@ -932,14 +935,28 @@ mod tests {
         assert!(matches!(error, Err(LoadSettingsError::FileUnreadable(..))));
     }
 
+    fn one_valid_theme() -> Theme {
+        Theme {
+            idle: crate::color::IDLE,
+            clock_bg: Color::BLACK,
+            clock_digits: Color::WHITE,
+            stops: crate::color::DEFAULT_STOPS.to_vec(),
+            interpolation_method: crate::color::InterpolationMethod::Lerp,
+        }
+    }
     #[test]
     fn valid_selected_theme_passes_sanitization() {
-        let themes = default_themes();
-        let settings = Settings::default();
+        let mut themes = HashMap::new();
+        let test_theme = "test_theme";
+        themes.insert(test_theme.to_string(), one_valid_theme());
+        let settings = Settings {
+            selected_theme: test_theme.to_string(),
+            ..Settings::default()
+        };
         let (settings, correction) = sanitize_selected_theme(settings, &themes);
 
         assert!(correction.is_none());
-        assert!(settings.selected_theme.contains("default"));
+        assert!(settings.selected_theme.contains(test_theme));
     }
 
     #[test]

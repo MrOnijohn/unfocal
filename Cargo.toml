@@ -10,6 +10,7 @@ atomicwrites = "0.4.4"
 csscolorparser = "0.8.3"
 directories = "6.0.0"
 egui_extras = "0.34.2"
+egui-modal = "0.6.0"
 env_logger = "0.11.10"
 log = "0.4.29"
 serde = { version = "1.0.228", features = ["derive"] }

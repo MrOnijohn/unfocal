@@ -51,14 +51,6 @@ impl Message {
                 let severity = Severity::Error;
                 Self { severity, message }
             }
-            LoadThemesError::NoThemesDefined => {
-                let message = format!(
-                    "Found no themes in themes.toml. {}",
-                    default_themes_loaded()
-                );
-                let severity = Severity::Error;
-                Self { severity, message }
-            }
             LoadThemesError::InvalidTheme {
                 name,
                 parse_theme_error,
