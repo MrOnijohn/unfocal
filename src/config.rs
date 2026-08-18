@@ -9,7 +9,7 @@ use thiserror::Error;
 
 pub const DEFAULT_THEMES: &str = include_str!("../assets/themes.toml");
 const DEFAULT_THEME_TOML: &str = include_str!("../assets/default_theme.toml");
-const DEFAULT_THEME: &str = "default";
+pub const DEFAULT_THEME: &str = "default";
 
 #[derive(Serialize, Deserialize)]
 struct RawStop {
@@ -186,6 +186,7 @@ pub struct Settings {
     pub show_clock: ShowClock,
     pub focus_time: u32,
     pub selected_theme: String,
+    pub show_welcome_message: bool,
 }
 
 impl Default for Settings {
@@ -195,6 +196,7 @@ impl Default for Settings {
             show_clock: ShowClock::OnMouseOver,
             focus_time: 25,
             selected_theme: DEFAULT_THEME.to_string(),
+            show_welcome_message: true,
         }
     }
 }
@@ -342,6 +344,7 @@ pub enum SettingsLoadingOutcome {
     Defaulted {
         load_settings_error: LoadSettingsError,
     },
+    FirstRun,
 }
 
 pub fn load_settings(settings_toml: impl AsRef<Path>) -> (Settings, SettingsLoadingOutcome) {
@@ -352,6 +355,11 @@ pub fn load_settings(settings_toml: impl AsRef<Path>) -> (Settings, SettingsLoad
                 settings,
                 SettingsLoadingOutcome::ParsedAndLoaded { corrections },
             )
+        }
+        Err(LoadSettingsError::FileUnreadable(io_error))
+            if io_error.kind() == std::io::ErrorKind::NotFound =>
+        {
+            (Settings::default(), SettingsLoadingOutcome::FirstRun)
         }
         Err(load_settings_error) => (
             Settings::default(),
@@ -854,6 +862,7 @@ mod tests {
             focus_time: 34,
             show_clock: ShowClock::Never,
             selected_theme: DEFAULT_THEME.into(),
+            show_welcome_message: false,
         }
     }
 
@@ -937,7 +946,7 @@ mod tests {
 
     fn one_valid_theme() -> Theme {
         Theme {
-            idle: crate::color::IDLE,
+            idle: Color::IDLE,
             clock_bg: Color::BLACK,
             clock_digits: Color::WHITE,
             stops: crate::color::DEFAULT_STOPS.to_vec(),

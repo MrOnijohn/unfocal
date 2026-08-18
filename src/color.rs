@@ -1,19 +1,19 @@
 use eframe::egui;
 use serde::{Deserialize, Serialize};
 
-pub const IDLE: Color = Color {
-    r: 0,
-    g: 204,
-    b: 204,
-};
-pub const STOP_0: Color = Color { r: 0, g: 204, b: 0 };
-pub const STOP_1: Color = Color {
+#[cfg(test)]
+const STOP_0: Color = Color { r: 0, g: 204, b: 0 };
+#[cfg(test)]
+const STOP_1: Color = Color {
     r: 204,
     g: 204,
     b: 0,
 };
-pub const STOP_2: Color = Color { r: 204, g: 0, b: 0 };
-pub const STOP_3: Color = Color { r: 0, g: 0, b: 0 };
+#[cfg(test)]
+const STOP_2: Color = Color { r: 204, g: 0, b: 0 };
+#[cfg(test)]
+const STOP_3: Color = Color { r: 0, g: 0, b: 0 };
+#[cfg(test)]
 pub const DEFAULT_STOPS: &[Stop] = &[
     Stop {
         color: STOP_0,
@@ -47,6 +47,11 @@ impl Color {
         g: 255,
         b: 255,
     };
+    pub const IDLE: Color = Color {
+        r: 0,
+        g: 204,
+        b: 204,
+    };
 }
 
 impl From<Color> for egui::Color32 {
@@ -72,8 +77,8 @@ pub struct Stop {
 #[derive(Serialize, Deserialize, Clone, Copy)]
 pub enum InterpolationMethod {
     Lerp,
-    LinearRGB,
-    Oklab,
+    LinearRGB, // Not implemented
+    Oklab,     // Not implemented
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -141,73 +146,17 @@ impl Theme {
     }
 }
 
-impl Default for Theme {
-    fn default() -> Self {
-        Self {
-            idle: IDLE,
-            stops: DEFAULT_STOPS.to_vec(),
-            clock_bg: Color::BLACK,
-            clock_digits: Color::WHITE,
-            interpolation_method: crate::color::InterpolationMethod::Lerp,
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
     fn valid_theme() -> Theme {
         Theme::new(
             DEFAULT_STOPS.to_vec(),
-            IDLE,
+            Color::IDLE,
             Color::BLACK,
             Color::WHITE,
             InterpolationMethod::Lerp,
         )
-    }
-
-    #[test]
-    fn idle_is_correctly_defined() {
-        let idle = Color {
-            r: 0,
-            g: 204,
-            b: 204,
-        };
-
-        assert_eq!(idle, IDLE);
-    }
-
-    #[test]
-    fn stop_0_is_correctly_defined() {
-        let stop_0 = Color { r: 0, g: 204, b: 0 };
-
-        assert_eq!(stop_0, STOP_0);
-    }
-
-    #[test]
-    fn stop_1_is_correctly_defined() {
-        let stop_1 = Color {
-            r: 204,
-            g: 204,
-            b: 0,
-        };
-
-        assert_eq!(stop_1, STOP_1);
-    }
-
-    #[test]
-    fn stop_2_is_correctly_defined() {
-        let stop_2 = Color { r: 204, g: 0, b: 0 };
-
-        assert_eq!(stop_2, STOP_2);
-    }
-
-    #[test]
-    fn stop_3_is_correctly_defined() {
-        let stop_3 = Color { r: 0, g: 0, b: 0 };
-
-        assert_eq!(stop_3, STOP_3);
     }
 
     #[test]

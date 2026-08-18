@@ -8,7 +8,8 @@ use directories::ProjectDirs;
 use eframe::{Renderer, egui};
 use log::info;
 use unfocol::{
-    Config, DEFAULT_THEMES, Message, Unfocol, load_settings, load_themes, sanitize_selected_theme,
+    Config, DEFAULT_THEME, DEFAULT_THEMES, Message, Unfocol, load_settings, load_themes,
+    sanitize_selected_theme,
 };
 
 fn main() -> eframe::Result {
@@ -33,10 +34,16 @@ fn main() -> eframe::Result {
         settings_loading_outcome,
     ));
 
+    debug_assert!(themes.contains_key(DEFAULT_THEME));
     let (settings, correction) = sanitize_selected_theme(settings, &themes);
     if let Some(correction) = correction {
         let message = Message::from_settings_correction(correction);
         messages.push(message);
+    }
+
+    if settings.show_welcome_message {
+        info!("First run detected.");
+        messages.push(Message::welcome_message());
     }
 
     let config = Config::new(themes, settings);

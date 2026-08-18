@@ -30,6 +30,12 @@ pub struct Message {
 }
 
 impl Message {
+    pub fn welcome_message() -> Self {
+        let message = "Welcome to Unfocol!\nPress Space to start or pause focus timer, R to reset, S for Settings and Q to quit.\nDisable this message in settings.".to_string();
+        let severity = Severity::Info;
+        Self { message, severity }
+    }
+
     pub fn from_load_themes_error(error: LoadThemesError) -> Self {
         match error {
             LoadThemesError::FileUnreadable { file, io_error } => {
@@ -137,6 +143,7 @@ impl Message {
                 let severity = Severity::Error;
                 Some(Self { message, severity })
             }
+            SettingsLoadingOutcome::FirstRun => None,
         }
     }
 
