@@ -196,7 +196,7 @@ impl Default for Settings {
             show_clock: ShowClock::OnMouseOver,
             focus_time: 25,
             selected_theme: DEFAULT_THEME.to_string(),
-            show_welcome_message: true,
+            show_welcome_message: false,
         }
     }
 }
@@ -359,6 +359,7 @@ pub fn load_settings(settings_toml: impl AsRef<Path>) -> (Settings, SettingsLoad
         Err(LoadSettingsError::FileUnreadable(io_error))
             if io_error.kind() == std::io::ErrorKind::NotFound =>
         {
+            info!("First run detected.");
             (Settings::default(), SettingsLoadingOutcome::FirstRun)
         }
         Err(load_settings_error) => (

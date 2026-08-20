@@ -1,15 +1,12 @@
-use std::fs::{File, create_dir_all};
-use std::io::Write;
+use std::fs::create_dir_all;
 use std::path::{Path, PathBuf};
 
-use anyhow::Context;
-use atomicwrites::replace_atomic;
 use directories::ProjectDirs;
 use eframe::{Renderer, egui};
 use log::info;
 use unfocol::{
-    Config, DEFAULT_THEME, DEFAULT_THEMES, Message, Unfocol, load_settings, load_themes,
-    sanitize_selected_theme,
+    Config, DEFAULT_THEME, DEFAULT_THEMES, Message, SettingsLoadingOutcome, Unfocol, load_settings,
+    load_themes, sanitize_selected_theme, write_atomic,
 };
 
 fn main() -> eframe::Result {
@@ -24,7 +21,11 @@ fn main() -> eframe::Result {
     info!("Loading themes from {}", themes_toml.display());
     let (themes, load_theme_errors) = load_themes(themes_toml);
     info!("Loading settings from {}", settings_toml.display());
-    let (settings, settings_loading_outcome) = load_settings(settings_toml);
+    let (mut settings, settings_loading_outcome) = load_settings(settings_toml);
+
+    if matches!(settings_loading_outcome, SettingsLoadingOutcome::FirstRun) {
+        settings.show_welcome_message = true;
+    }
 
     let mut messages: Vec<Message> = load_theme_errors
         .into_iter()
@@ -34,16 +35,15 @@ fn main() -> eframe::Result {
         settings_loading_outcome,
     ));
 
+    if settings.show_welcome_message {
+        messages.push(Message::welcome_message());
+    }
+
     debug_assert!(themes.contains_key(DEFAULT_THEME));
     let (settings, correction) = sanitize_selected_theme(settings, &themes);
     if let Some(correction) = correction {
         let message = Message::from_settings_correction(correction);
         messages.push(message);
-    }
-
-    if settings.show_welcome_message {
-        info!("First run detected.");
-        messages.push(Message::welcome_message());
     }
 
     let config = Config::new(themes, settings);
@@ -86,15 +86,10 @@ fn get_or_create_config_dir() -> PathBuf {
 fn ensure_themes_toml_exists(themes_toml: &Path, config_dir: &Path) -> Result<(), anyhow::Error> {
     if !themes_toml.exists() {
         info!("No themes.toml file found, creating default.");
+        let toml_str = DEFAULT_THEMES;
         let tmp_file_path = config_dir.join(".themes.toml.tmp");
-        let mut tmp_file = File::create(&tmp_file_path)
-            .with_context(|| format!("Creating {}", tmp_file_path.display()))?;
-        tmp_file
-            .write_all(DEFAULT_THEMES.as_bytes())
-            .with_context(|| format!("Writing default themes to {}", tmp_file_path.display()))?;
-        replace_atomic(&tmp_file_path, themes_toml)
-            .context("Replacing themes.toml with .themes.toml.tmp")?;
-
+        let final_file_path = config_dir.join("themes.toml");
+        write_atomic(toml_str, &tmp_file_path, &final_file_path)?;
         Ok(())
     } else {
         info!("Found themes.toml");

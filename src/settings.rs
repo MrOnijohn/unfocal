@@ -1,3 +1,4 @@
+use crate::Settings;
 use crate::config::ShowClock;
 use anyhow::Context;
 use atomicwrites::replace_atomic;
@@ -7,11 +8,16 @@ use eframe::egui::ViewportClass;
 use eframe::egui::ViewportId;
 use std::fs::File;
 use std::io::Write;
+use std::path::Path;
 use std::time::Instant;
 
 use crate::app::Unfocol;
 
 impl Unfocol<fn() -> Instant> {
+    fn save_settings(&self) -> Result<(), anyhow::Error> {
+        save_settings(&self.config.settings, &self.config_dir)
+    }
+
     pub fn render_settings(&mut self, ctx: &egui::Context) {
         if self.config.settings.show_settings {
             let viewport_id = ViewportId::from_hash_of("settings");
@@ -105,21 +111,26 @@ impl Unfocol<fn() -> Instant> {
             });
         }
     }
+}
 
-    fn save_settings(&self) -> Result<(), anyhow::Error> {
-        let toml_str =
-            toml::to_string(&self.config.settings).context("Parsing settings to toml")?;
-        let tmp_file_path = self.config_dir.join(".settings.toml.tmp");
-        let mut tmp_file = File::create(&tmp_file_path)
-            .with_context(|| format!("Creating {}", tmp_file_path.display()))?;
-        tmp_file
-            .write_all(toml_str.as_bytes())
-            .with_context(|| format!("Writing toml to {}", tmp_file_path.display()))?;
+pub fn write_atomic(
+    toml_str: &str,
+    tmp_file_path: &Path,
+    final_file_path: &Path,
+) -> Result<(), anyhow::Error> {
+    let mut tmp_file = File::create(tmp_file_path)
+        .with_context(|| format!("Creating {}", tmp_file_path.display()))?;
+    tmp_file
+        .write_all(toml_str.as_bytes())
+        .with_context(|| format!("Writing toml to {}", tmp_file_path.display()))?;
+    replace_atomic(tmp_file_path, final_file_path)
+        .with_context(|| format!("Replacing {}", final_file_path.display()))
+}
 
-        let settings_toml = self.config_dir.join("settings.toml");
-        replace_atomic(&tmp_file_path, &settings_toml)
-            .context("Replacing settings.toml with .settings.toml.tmp")?;
-
-        Ok(())
-    }
+fn save_settings(settings: &Settings, config_dir: &Path) -> Result<(), anyhow::Error> {
+    let toml_str = toml::to_string(settings).context("Parsing settings to toml")?;
+    let tmp_file_path = config_dir.join(".settings.toml.tmp");
+    let final_file_path = config_dir.join("settings.toml");
+    write_atomic(&toml_str, &tmp_file_path, &final_file_path)?;
+    Ok(())
 }
