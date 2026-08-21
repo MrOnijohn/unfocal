@@ -113,24 +113,24 @@ impl Unfocol<fn() -> Instant> {
     }
 }
 
-pub fn write_atomic(
-    toml_str: &str,
-    tmp_file_path: &Path,
-    final_file_path: &Path,
-) -> Result<(), anyhow::Error> {
-    let mut tmp_file = File::create(tmp_file_path)
+pub fn write_atomic(toml_str: &str, final_file_path: &Path) -> Result<(), anyhow::Error> {
+    let file_name = final_file_path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .with_context(|| format!("Getting file name from {}", final_file_path.display()))?;
+    let tmp_file_path = final_file_path.with_file_name(format!(".{file_name}.tmp"));
+    let mut tmp_file = File::create(&tmp_file_path)
         .with_context(|| format!("Creating {}", tmp_file_path.display()))?;
     tmp_file
         .write_all(toml_str.as_bytes())
         .with_context(|| format!("Writing toml to {}", tmp_file_path.display()))?;
-    replace_atomic(tmp_file_path, final_file_path)
+    replace_atomic(&tmp_file_path, final_file_path)
         .with_context(|| format!("Replacing {}", final_file_path.display()))
 }
 
 fn save_settings(settings: &Settings, config_dir: &Path) -> Result<(), anyhow::Error> {
     let toml_str = toml::to_string(settings).context("Parsing settings to toml")?;
-    let tmp_file_path = config_dir.join(".settings.toml.tmp");
     let final_file_path = config_dir.join("settings.toml");
-    write_atomic(&toml_str, &tmp_file_path, &final_file_path)?;
+    write_atomic(&toml_str, &final_file_path)?;
     Ok(())
 }

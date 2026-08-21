@@ -36,6 +36,12 @@ impl Message {
         Self { message, severity }
     }
 
+    pub fn save_settings_failed() -> Self {
+        let message = "Failed to save settings to disk, your changes might not persist".to_string();
+        let severity = Severity::Warning;
+        Self { severity, message }
+    }
+
     pub fn from_load_themes_error(error: LoadThemesError) -> Self {
         match error {
             LoadThemesError::FileUnreadable { file, io_error } => {

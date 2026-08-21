@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use directories::ProjectDirs;
 use eframe::{Renderer, egui};
-use log::info;
+use log::{info, warn};
 use unfocol::{
     Config, DEFAULT_THEME, DEFAULT_THEMES, Message, SettingsLoadingOutcome, Unfocol, load_settings,
     load_themes, sanitize_selected_theme, write_atomic,
@@ -21,10 +21,16 @@ fn main() -> eframe::Result {
     info!("Loading themes from {}", themes_toml.display());
     let (themes, load_theme_errors) = load_themes(themes_toml);
     info!("Loading settings from {}", settings_toml.display());
-    let (mut settings, settings_loading_outcome) = load_settings(settings_toml);
+    let (mut settings, settings_loading_outcome) = load_settings(&settings_toml);
 
     if matches!(settings_loading_outcome, SettingsLoadingOutcome::FirstRun) {
         settings.show_welcome_message = true;
+        info!("Writing settings.toml");
+        let toml_str =
+            toml::to_string(&settings).expect("Default settings should always serialize to TOML");
+        if let Err(e) = write_atomic(&toml_str, &settings_toml) {
+            warn!("Failed to write settings.toml to disk: {e:?}");
+        }
     }
 
     let mut messages: Vec<Message> = load_theme_errors
@@ -87,9 +93,8 @@ fn ensure_themes_toml_exists(themes_toml: &Path, config_dir: &Path) -> Result<()
     if !themes_toml.exists() {
         info!("No themes.toml file found, creating default.");
         let toml_str = DEFAULT_THEMES;
-        let tmp_file_path = config_dir.join(".themes.toml.tmp");
         let final_file_path = config_dir.join("themes.toml");
-        write_atomic(toml_str, &tmp_file_path, &final_file_path)?;
+        write_atomic(toml_str, &final_file_path)?;
         Ok(())
     } else {
         info!("Found themes.toml");
