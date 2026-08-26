@@ -37,7 +37,7 @@ impl Message {
     }
 
     pub fn save_settings_failed() -> Self {
-        let message = "Failed to save settings to disk, your changes might not persist".to_string();
+        let message = "Failed to save settings to disk, your changes might not persist. Check free space and file permissions.".to_string();
         let severity = Severity::Warning;
         Self { severity, message }
     }

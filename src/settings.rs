@@ -1,3 +1,4 @@
+use crate::Message;
 use crate::Settings;
 use crate::config::ShowClock;
 use anyhow::Context;
@@ -6,6 +7,7 @@ use eframe::egui;
 use eframe::egui::ViewportBuilder;
 use eframe::egui::ViewportClass;
 use eframe::egui::ViewportId;
+use log::warn;
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
@@ -14,8 +16,11 @@ use std::time::Instant;
 use crate::app::Unfocol;
 
 impl Unfocol<fn() -> Instant> {
-    fn save_settings(&self) -> Result<(), anyhow::Error> {
-        save_settings(&self.config.settings, &self.config_dir)
+    fn save_settings(&mut self) {
+        if let Err(e) = save_settings(&self.config.settings, &self.config_dir) {
+            warn!("Saving settings.toml failed: {e:?}");
+            self.messages.push(Message::save_settings_failed());
+        }
     }
 
     pub fn render_settings(&mut self, ctx: &egui::Context) {
@@ -41,7 +46,7 @@ impl Unfocol<fn() -> Instant> {
                     if should_close {
                         self.config.settings.show_settings = false;
                         self.settings_t = 0.0;
-                        self.save_settings().expect("Failed to save settings");
+                        self.save_settings();
                     }
 
                     egui::Grid::new("settings_grid")
@@ -61,7 +66,7 @@ impl Unfocol<fn() -> Instant> {
                                     }
                                 });
                             if theme_before != self.config.settings.selected_theme {
-                                self.save_settings().expect("Failed to save settings");
+                                self.save_settings();
                             }
                             ui.end_row();
                             if ui
@@ -71,7 +76,7 @@ impl Unfocol<fn() -> Instant> {
                                 )
                                 .changed()
                             {
-                                self.save_settings().expect("Failed to save settings");
+                                self.save_settings();
                             }
                             ui.end_row();
                             ui.add(
@@ -104,7 +109,7 @@ impl Unfocol<fn() -> Instant> {
                                     );
                                 });
                             if clock_before != self.config.settings.show_clock {
-                                self.save_settings().expect("Failed to save settings")
+                                self.save_settings();
                             }
                         });
                 });
