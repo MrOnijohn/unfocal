@@ -27,6 +27,7 @@ impl Unfocol<fn() -> Instant> {
         if self.config.settings.show_settings {
             let viewport_id = ViewportId::from_hash_of("settings");
             let builder = ViewportBuilder::default()
+                .with_app_id("se.johnkinell.Unfocol.Setttings")
                 .with_title("Unfocol settings")
                 .with_active(true)
                 .with_decorations(true)

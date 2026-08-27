@@ -57,6 +57,7 @@ fn main() -> eframe::Result {
     info!("Starting app");
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
+            .with_app_id("se.johnkinell.Unfocol")
             .with_inner_size([100.0, 1080.0])
             .with_min_inner_size([10.0, 10.0])
             .with_position([1820.0, 0.0])
@@ -81,7 +82,7 @@ fn main() -> eframe::Result {
 }
 
 fn get_or_create_config_dir() -> PathBuf {
-    if let Some(proj_dir) = ProjectDirs::from("com", "unfocol", "Unfocol") {
+    if let Some(proj_dir) = ProjectDirs::from("se", "johnkinell", "Unfocol") {
         create_dir_all(proj_dir.config_dir()).expect("Could not create config directory");
         proj_dir.config_dir().to_path_buf()
     } else {

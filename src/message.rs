@@ -19,14 +19,14 @@ fn correct_hex_code_and_restart() -> &'static str {
     "Correct hex code and restart to try again."
 }
 
-enum Severity {
+pub enum Severity {
     Error,
     Warning,
     Info,
 }
 pub struct Message {
-    severity: Severity,
-    message: String,
+    pub severity: Severity,
+    pub message: String,
 }
 
 impl Message {
