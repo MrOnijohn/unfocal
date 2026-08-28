@@ -1,5 +1,6 @@
 use crate::Message;
 use crate::Settings;
+use crate::Timer;
 use crate::config::ShowClock;
 use anyhow::Context;
 use atomicwrites::replace_atomic;
@@ -54,6 +55,8 @@ impl Unfocol<fn() -> Instant> {
                         .min_col_width(200.0)
                         .spacing([16.0, 12.0])
                         .show(ui, |ui| {
+
+                            // Row 1
                             let theme_before = self.config.settings.selected_theme.clone();
                             egui::ComboBox::from_label("Choose theme")
                                 .selected_text(format!("{:?}", self.config.settings.selected_theme))
@@ -70,16 +73,8 @@ impl Unfocol<fn() -> Instant> {
                                 self.save_settings();
                             }
                             ui.end_row();
-                            if ui
-                                .add(
-                                    egui::Slider::new(&mut self.config.settings.focus_time, 1..=99)
-                                        .text("Focus time duration"),
-                                )
-                                .changed()
-                            {
-                                self.save_settings();
-                            }
-                            ui.end_row();
+
+                            // Row 2
                             ui.add(
                                 egui::Slider::new(&mut self.settings_t, 0.0..=1.0)
                                     .text("Preview focus colors"),
@@ -89,6 +84,19 @@ impl Unfocol<fn() -> Instant> {
                                 "Preview idle color",
                             ));
                             ui.end_row();
+
+                            // Row 3
+                            if ui.add( egui::Slider::new(&mut self.config.settings.focus_time, 1..=99)
+                                        .text("Focus time duration"),
+                                )
+                                .changed()
+                            {
+                                self.timer = Timer::new(self.config.settings.focus_time);
+                                self.save_settings();
+                            }
+                            ui.end_row();
+
+                            // Row 4
                             let clock_before = self.config.settings.show_clock.clone();
                             egui::ComboBox::from_label("Show remaining time")
                                 .selected_text(format!("{:?}", self.config.settings.show_clock))
@@ -112,6 +120,20 @@ impl Unfocol<fn() -> Instant> {
                             if clock_before != self.config.settings.show_clock {
                                 self.save_settings();
                             }
+                            ui.end_row();
+
+                            // Row 5
+                            ui.add(egui::Checkbox::new(
+                                &mut self.config.settings.show_welcome_message,
+                                "Show welcome message at startup"
+                            ));
+                            ui.end_row();
+
+                            // Row 6
+                            ui.add(egui::Checkbox::new(
+                                &mut self.config.settings.show_time_is_up_message,
+                                "Show popup when focus time is up"
+                            ));
                         });
                 });
             });

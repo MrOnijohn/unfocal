@@ -187,6 +187,7 @@ pub struct Settings {
     pub focus_time: u32,
     pub selected_theme: String,
     pub show_welcome_message: bool,
+    pub show_time_is_up_message: bool,
 }
 
 impl Default for Settings {
@@ -197,6 +198,7 @@ impl Default for Settings {
             focus_time: 25,
             selected_theme: DEFAULT_THEME.to_string(),
             show_welcome_message: false,
+            show_time_is_up_message: false,
         }
     }
 }
@@ -299,14 +301,6 @@ fn parse_themes(toml_contents: String) -> (HashMap<String, Theme>, Vec<LoadTheme
     (themes, errors)
 }
 
-fn default_themes() -> HashMap<String, Theme> {
-    let (themes, errors) = parse_themes(DEFAULT_THEMES.to_string());
-    debug_assert!(
-        errors.is_empty(),
-        "Default themes did not parse correctly {errors:?}"
-    );
-    themes
-}
 
 fn default_theme() -> Theme {
     let (mut themes, errors) = parse_themes(DEFAULT_THEME_TOML.to_string());
@@ -423,6 +417,15 @@ fn get_toml_as_str(path: impl AsRef<Path>) -> Result<String, std::io::Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn default_themes() -> HashMap<String, Theme> {
+    let (themes, errors) = parse_themes(DEFAULT_THEMES.to_string());
+    debug_assert!(
+        errors.is_empty(),
+        "Default themes did not parse correctly {errors:?}"
+    );
+    themes
+    }
 
     fn default_theme_as_str() -> String {
         r##"
@@ -864,6 +867,7 @@ mod tests {
             show_clock: ShowClock::Never,
             selected_theme: DEFAULT_THEME.into(),
             show_welcome_message: false,
+            show_time_is_up_message: false,
         }
     }
 

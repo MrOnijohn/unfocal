@@ -22,7 +22,7 @@ pub struct Unfocol<F: Fn() -> Instant> {
 impl Unfocol<fn() -> Instant> {
     pub fn new(config: Config, config_dir: PathBuf, messages: Vec<Message>) -> Self {
         Self {
-            timer: Timer::default(),
+            timer: Timer::new(config.settings.focus_time),
             settings_t: 0.0,
             settings_idle: false,
             mouse_over: false,
@@ -89,6 +89,10 @@ impl Unfocol<fn() -> Instant> {
 impl eframe::App for Unfocol<fn() -> Instant> {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         self.handle_inputs(ui.ctx());
+
+        if self.timer.remaining().is_zero() && self.config.settings.show_time_is_up_message {
+            self.messages.push(Message::time_is_up());
+        }
 
         self.timer.update_state();
 

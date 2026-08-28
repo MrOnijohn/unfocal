@@ -36,6 +36,12 @@ impl Message {
         Self { message, severity }
     }
 
+    pub fn time_is_up() -> Self {
+        let message = "Focus time is up!".to_string();
+        let severity = Severity::Info;
+        Self { message, severity}
+    }
+
     pub fn save_settings_failed() -> Self {
         let message = "Failed to save settings to disk, your changes might not persist. Check free space and file permissions.".to_string();
         let severity = Severity::Warning;
