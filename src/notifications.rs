@@ -36,8 +36,12 @@ impl Unfocol<fn() -> Instant> {
                                         Severity::Warning => ui.label("Warning"),
                                         Severity::Info => ui.label("Info"),
                                     };
-                                    ui.label(&message.message);
+                                    ui.add(
+                                        egui::Label::new(&message.message)
+                                            .wrap_mode(egui::TextWrapMode::Wrap)
+                                    );
                                 });
+                                ui.separator();
                             }
                         });
                     let should_close = ctx.input(|i| {

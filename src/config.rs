@@ -192,7 +192,7 @@ pub struct Settings {
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            show_settings: true,
+            show_settings: false,
             show_clock: ShowClock::OnMouseOver,
             focus_time: 25,
             selected_theme: DEFAULT_THEME.to_string(),

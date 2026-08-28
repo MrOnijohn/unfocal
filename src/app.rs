@@ -98,7 +98,7 @@ impl eframe::App for Unfocol<fn() -> Instant> {
         let current_color: Color = self.get_current_color();
         self.render_focus_window(current_color, ui);
 
-        self.display_notifications();
+        self.display_notifications(ui.ctx());
 
         let nanos = self.timer.remaining().subsec_nanos();
         let until_repaint = if nanos == 0 {
