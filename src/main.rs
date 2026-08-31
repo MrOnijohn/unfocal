@@ -1,12 +1,12 @@
-use std::fs::create_dir_all;
 use std::path::{Path, PathBuf};
+use std::fs::create_dir_all;
 
-use directories::ProjectDirs;
+use directories::{BaseDirs, ProjectDirs};
 use eframe::{Renderer, egui};
 use log::{info, warn};
 use unfocol::{
     Config, DEFAULT_THEME, DEFAULT_THEMES, Message, SettingsLoadingOutcome, Unfocol, load_settings,
-    load_themes, sanitize_selected_theme, write_atomic,
+    load_themes, sanitize_selected_theme, write_atomic, omarchy_theme
 };
 
 fn main() -> eframe::Result {
@@ -19,7 +19,7 @@ fn main() -> eframe::Result {
     let settings_toml = config_dir.join("settings.toml");
 
     info!("Loading themes from {}", themes_toml.display());
-    let (themes, load_theme_errors) = load_themes(themes_toml);
+    let (mut themes, load_theme_errors) = load_themes(themes_toml);
     info!("Loading settings from {}", settings_toml.display());
     let (mut settings, settings_loading_outcome) = load_settings(&settings_toml);
 
@@ -43,6 +43,16 @@ fn main() -> eframe::Result {
 
     if settings.show_welcome_message {
         messages.push(Message::welcome_message());
+    }
+
+    if let Some(colors_toml_path) = omarchy_colors_toml() {
+        match omarchy_theme(colors_toml_path) {
+            Ok(omarchy_theme) => { themes.insert("Omarchy".to_string(), omarchy_theme); },
+            Err(e) => {
+                let message = Message::from_omarchy_theme_error(e);
+                messages.push(message);
+            }
+        }
     }
 
     debug_assert!(themes.contains_key(DEFAULT_THEME));
@@ -101,4 +111,12 @@ fn ensure_themes_toml_exists(themes_toml: &Path, config_dir: &Path) -> Result<()
         info!("Found themes.toml");
         Ok(())
     }
+}
+
+fn omarchy_colors_toml() -> Option<PathBuf> {
+    let omarchy_colors_toml_path_str = "omarchy/current/theme/colors.toml";
+    BaseDirs::new()?
+        .state_dir()?
+        .join(omarchy_colors_toml_path_str)
+        .into()
 }

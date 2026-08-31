@@ -1,3 +1,4 @@
+use std::fs::create_dir_all;
 use crate::color::{Color, Stop, Theme};
 use displaydoc::Display;
 use log::info;
@@ -5,7 +6,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use directories::{BaseDirs, ProjectDirs};
 use thiserror::Error;
+use crate::settings::write_atomic;
 
 pub const DEFAULT_THEMES: &str = include_str!("../assets/themes.toml");
 const DEFAULT_THEME_TOML: &str = include_str!("../assets/default_theme.toml");
@@ -224,6 +227,29 @@ impl Default for Config {
     }
 }
 
+pub fn get_or_create_config_dir() -> PathBuf {
+    if let Some(proj_dir) = ProjectDirs::from("se", "johnkinell", "Unfocol") {
+        create_dir_all(proj_dir.config_dir()).expect("Could not create config directory");
+        proj_dir.config_dir().to_path_buf()
+    } else {
+        panic!("No home directory")
+    }
+}
+
+pub fn ensure_themes_toml_exists(themes_toml: &Path, config_dir: &Path) -> Result<(), anyhow::Error> {
+    if !themes_toml.exists() {
+        info!("No themes.toml file found, creating default.");
+        let toml_str = DEFAULT_THEMES;
+        let final_file_path = config_dir.join("themes.toml");
+        write_atomic(toml_str, &final_file_path)?;
+        Ok(())
+    } else {
+        info!("Found themes.toml");
+        Ok(())
+    }
+}
+
+
 #[derive(Error, Debug)]
 pub enum LoadThemesError {
     #[error("Failed to read themes.toml")]
@@ -313,6 +339,92 @@ fn default_theme() -> Theme {
     themes
         .remove(DEFAULT_THEME)
         .expect("Default theme missing from default_theme.toml")
+}
+
+pub fn omarchy_colors_toml() -> Option<PathBuf> {
+    let omarchy_colors_toml_path_str = "omarchy/current/theme/colors.toml";
+    BaseDirs::new()?
+        .state_dir()?
+        .join(omarchy_colors_toml_path_str)
+        .into()
+}
+
+#[derive(Error, Debug)]
+pub enum OmarchyThemeError {
+    #[error("Failed to read colors.toml: {0}")]
+    FileUnreadable(#[from] std::io::Error),
+    #[error("Failed to parse colors.toml: {0}")]
+    TomlParsing(#[from] toml::de::Error),
+    #[error("Missing definition for color(s): {}", missing_colors.join(", "))]
+    MissingColor { missing_colors: Vec<&'static str> },
+    #[error("Parsing of hex value failed: {0}")]
+    ColorParsing(#[from] csscolorparser::ParseColorError),
+}
+
+pub fn omarchy_theme(path: PathBuf) -> Result<Theme, OmarchyThemeError> {
+    let toml_str = get_toml_as_str(path)?;
+    let colors_table: HashMap<String, String> = toml::from_str(&toml_str)?;
+    let mut palette: HashMap<String, Option<Color>> = HashMap::new();
+    let mut missing_colors = Vec::new();
+    let greens = vec!["green", "color2"];
+    let yellows = vec!["yellow", "color3"];
+    let reds = vec!["red", "color1"];
+    let cyans = vec!["cyan", "color6"];
+    let foregrounds= vec!["foreground"];
+    let backgrounds = vec!["background"];
+
+    let colors_to_extract = vec![("green", greens), ("yellow", yellows), ("red", reds), ("cyan", cyans), ("clock_digits", foregrounds), ("clock_bg", backgrounds)];
+    
+    for theme_color in colors_to_extract {
+        match return_color(&colors_table, theme_color.1) {
+            Ok(Some(color)) => { palette.insert(theme_color.0.to_string(), Some(color)); },
+            _ => { missing_colors.push(theme_color.0); },
+        }
+    }
+
+    if !missing_colors.is_empty() {
+        Err(OmarchyThemeError::MissingColor { missing_colors })
+    } else {
+        let stop_0 = Stop {
+            progress: 0.0,
+            color: palette["green"].expect("green should be in palette"),
+        };
+        let stop_1 = Stop {
+            progress: 0.5,
+            color: palette["yellow"].expect("yellow should be in palette"),
+        };
+        let stop_2 = Stop {
+            progress: 0.833,
+            color: palette["red"].expect("red should be in palette"),
+        };
+        let stop_3 = Stop {
+            progress: 1.0,
+            color: Color::BLACK,
+        };
+        let idle = palette["cyan"].expect("cyan should be in palette");
+        let clock_digits = palette["clock_digits"].expect("clock_digits should be in palette");
+        let clock_bg = palette["clock_bg"].expect("clock_bg should be in palette");
+        let stops = vec![stop_0, stop_1, stop_2, stop_3];
+        Ok(Theme {
+            stops,
+            idle,
+            clock_bg,
+            clock_digits,
+            interpolation_method: crate::color::InterpolationMethod::Lerp,
+        })
+    }
+
+
+}
+
+fn return_color(colors_table: &HashMap<String, String>, color_names: Vec<&str>) -> Result<Option<Color>, OmarchyThemeError> {
+    for color_name in color_names {
+        if let Some(hex) = colors_table.get(color_name) {
+            let color: Color = hex.parse()?;
+            return Ok(Some(color))
+        }
+    }
+    Ok(None)
 }
 
 #[derive(Error, Debug)]

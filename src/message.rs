@@ -1,6 +1,6 @@
+
 use crate::config::{
-    LoadSettingsError, LoadThemesError, ParseStopError, ParseThemeError, SettingsCorrection,
-    SettingsLoadingOutcome,
+    LoadSettingsError, LoadThemesError, OmarchyThemeError, ParseStopError, ParseThemeError, SettingsCorrection, SettingsLoadingOutcome,
 };
 
 fn default_themes_loaded() -> &'static str {
@@ -167,6 +167,18 @@ impl Message {
             ),
             severity: Severity::Warning,
         }
+    }
+
+    // TODO! Make the messages more friendly for the end user
+    pub fn from_omarchy_theme_error(omarchy_theme_error: OmarchyThemeError) -> Self {
+        let message = match omarchy_theme_error {
+            OmarchyThemeError::FileUnreadable(error) => error.to_string(), 
+            OmarchyThemeError::TomlParsing(error) => error.to_string(),
+            OmarchyThemeError::ColorParsing(error) => error.to_string(),
+            OmarchyThemeError::MissingColor { missing_colors } => format!("One or more vital colors were missing definitions in colors.toml: {}", missing_colors.join(", ")),
+        };
+        let severity = Severity::Error;
+        Self { severity, message}
     }
 }
 
