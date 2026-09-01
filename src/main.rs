@@ -1,12 +1,8 @@
-use std::path::{Path, PathBuf};
-use std::fs::create_dir_all;
-
-use directories::{BaseDirs, ProjectDirs};
 use eframe::{Renderer, egui};
 use log::{info, warn};
 use unfocol::{
-    Config, DEFAULT_THEME, DEFAULT_THEMES, Message, SettingsLoadingOutcome, Unfocol, load_settings,
-    load_themes, sanitize_selected_theme, write_atomic, omarchy_theme
+    Config, DEFAULT_THEME, Message, SettingsLoadingOutcome, Unfocol, get_or_create_config_dir, load_settings, ensure_themes_toml_exists,
+    load_themes, sanitize_selected_theme, write_atomic, omarchy_colors_toml, omarchy_theme,
 };
 
 fn main() -> eframe::Result {
@@ -89,34 +85,4 @@ fn main() -> eframe::Result {
         options,
         Box::new(|_cc| Ok(Box::new(Unfocol::new(config, config_dir, messages)))),
     )
-}
-
-fn get_or_create_config_dir() -> PathBuf {
-    if let Some(proj_dir) = ProjectDirs::from("se", "johnkinell", "Unfocol") {
-        create_dir_all(proj_dir.config_dir()).expect("Could not create config directory");
-        proj_dir.config_dir().to_path_buf()
-    } else {
-        panic!("No home directory")
-    }
-}
-
-fn ensure_themes_toml_exists(themes_toml: &Path, config_dir: &Path) -> Result<(), anyhow::Error> {
-    if !themes_toml.exists() {
-        info!("No themes.toml file found, creating default.");
-        let toml_str = DEFAULT_THEMES;
-        let final_file_path = config_dir.join("themes.toml");
-        write_atomic(toml_str, &final_file_path)?;
-        Ok(())
-    } else {
-        info!("Found themes.toml");
-        Ok(())
-    }
-}
-
-fn omarchy_colors_toml() -> Option<PathBuf> {
-    let omarchy_colors_toml_path_str = "omarchy/current/theme/colors.toml";
-    BaseDirs::new()?
-        .state_dir()?
-        .join(omarchy_colors_toml_path_str)
-        .into()
 }
