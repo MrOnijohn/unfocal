@@ -111,6 +111,9 @@ impl Message {
                 );
                 let severity = Severity::Warning;
                 Self { severity, message }
+            },
+            LoadThemesError::OmarchyRelated(e) => {
+                Self::from_omarchy_theme_error(e)
             }
         }
     }

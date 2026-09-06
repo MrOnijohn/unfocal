@@ -2,7 +2,7 @@ use eframe::{Renderer, egui};
 use log::{info, warn};
 use unfocol::{
     Config, DEFAULT_THEME, Message, SettingsLoadingOutcome, Unfocol, get_or_create_config_dir, load_settings, ensure_themes_toml_exists,
-    load_themes, sanitize_selected_theme, write_atomic, omarchy_colors_toml, omarchy_theme,
+    load_themes, sanitize_selected_theme, write_atomic,
 };
 
 fn main() -> eframe::Result {
@@ -15,7 +15,7 @@ fn main() -> eframe::Result {
     let settings_toml = config_dir.join("settings.toml");
 
     info!("Loading themes from {}", themes_toml.display());
-    let (mut themes, load_theme_errors) = load_themes(themes_toml);
+    let (themes, load_theme_errors) = load_themes(themes_toml);
     info!("Loading settings from {}", settings_toml.display());
     let (mut settings, settings_loading_outcome) = load_settings(&settings_toml);
 
@@ -39,16 +39,6 @@ fn main() -> eframe::Result {
 
     if settings.show_welcome_message {
         messages.push(Message::welcome_message());
-    }
-
-    if let Some(colors_toml_path) = omarchy_colors_toml() {
-        match omarchy_theme(colors_toml_path) {
-            Ok(omarchy_theme) => { themes.insert("Omarchy".to_string(), omarchy_theme); },
-            Err(e) => {
-                let message = Message::from_omarchy_theme_error(e);
-                messages.push(message);
-            }
-        }
     }
 
     debug_assert!(themes.contains_key(DEFAULT_THEME));

@@ -266,20 +266,34 @@ pub enum LoadThemesError {
         #[source]
         parse_theme_error: ParseThemeError,
     },
+    #[error(transparent)]
+    OmarchyRelated(#[from] OmarchyThemeError),
 }
 
 pub fn load_themes(
     themes_toml: impl AsRef<Path>,
 ) -> (HashMap<String, Theme>, Vec<LoadThemesError>) {
-    let (mut themes, errors) = try_load_themes(&themes_toml);
+    let (mut themes, mut errors) = try_load_themes(&themes_toml);
     if themes.is_empty() && errors.is_empty() {
         info!("themes.toml was empty.");
     }
     if themes.contains_key(DEFAULT_THEME) {
         info!("Found user defined 'default' theme, replacing.");
     }
-    // TODO! Check for user Omarchy theme, and replace
     themes.insert(DEFAULT_THEME.to_string(), default_theme());
+
+    if let Some(colors_toml_path) = omarchy_colors_toml() {
+        match omarchy_theme(colors_toml_path) {
+            Ok(omarchy_theme) => { themes.insert("Omarchy".to_string(), omarchy_theme); },
+            Err(OmarchyThemeError::FileUnreadable(e)) if e.kind() == std::io::ErrorKind::NotFound => {
+                //Do nothing, since this is expected on distros other than Omarchy.
+            },
+            Err(e) => {
+                errors.push(LoadThemesError::OmarchyRelated(e));
+            }
+        }
+    }
+
     (themes, errors)
 }
 
@@ -351,7 +365,7 @@ pub fn omarchy_colors_toml() -> Option<PathBuf> {
 
 #[derive(Error, Debug)]
 pub enum OmarchyThemeError {
-    #[error("Failed to read colors.toml: {0}")]
+    #[error(transparent)]
     FileUnreadable(#[from] std::io::Error),
     #[error("Failed to parse colors.toml: {0}")]
     TomlParsing(#[from] toml::de::Error),
@@ -366,7 +380,7 @@ pub fn omarchy_theme(path: PathBuf) -> Result<Theme, OmarchyThemeError> {
     let colors_table: HashMap<String, String> = toml::from_str(&toml_str)?;
     let mut palette = Vec::new();
     let mut missing_colors = Vec::new();
-    
+
     let colors_to_extract: Vec<(&str, &[&str])> = vec![
         ("green", &["green", "color2"]),
         ("yellow", &["yellow", "color3"]),
@@ -374,12 +388,12 @@ pub fn omarchy_theme(path: PathBuf) -> Result<Theme, OmarchyThemeError> {
         ("cyan", &["cyan", "color6"]),
         ("clock_digits", &["foreground"]),
         ("clock_bg", &["background"]),
-    ]; 
+    ];
 
     for (name, theme_colors) in colors_to_extract {
         match return_color(&colors_table, theme_colors) {
-            Ok(Some(color)) => {palette.push(Some(color));},
-            Ok(None) => { missing_colors.push(name); },
+            Ok(Some(color)) => palette.push(Some(color)),
+            Ok(None) => missing_colors.push(name),
             Err(e) => return Err(e),
         }
     }
