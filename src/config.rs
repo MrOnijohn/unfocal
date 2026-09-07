@@ -13,6 +13,7 @@ use crate::settings::write_atomic;
 pub const DEFAULT_THEMES: &str = include_str!("../assets/themes.toml");
 const DEFAULT_THEME_TOML: &str = include_str!("../assets/default_theme.toml");
 pub const DEFAULT_THEME: &str = "default";
+pub const OMARCHY_CURRENT: &str = "omarchy/current";
 
 #[derive(Serialize, Deserialize)]
 struct RawStop {
@@ -355,12 +356,15 @@ fn default_theme() -> Theme {
         .expect("Default theme missing from default_theme.toml")
 }
 
-pub fn omarchy_colors_toml() -> Option<PathBuf> {
-    let omarchy_colors_toml_path_str = "omarchy/current/theme/colors.toml";
-    BaseDirs::new()?
+pub fn omarchy_current() -> Option<PathBuf> {
+    Some(BaseDirs::new()?
         .state_dir()?
-        .join(omarchy_colors_toml_path_str)
-        .into()
+        .join(OMARCHY_CURRENT))
+}
+
+pub fn omarchy_colors_toml() -> Option<PathBuf> {
+    let omarchy_colors_toml_path_str = "theme/colors.toml";
+    Some(omarchy_current()?.join(omarchy_colors_toml_path_str))
 }
 
 #[derive(Error, Debug)]

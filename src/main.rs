@@ -1,8 +1,8 @@
 use eframe::{Renderer, egui};
 use log::{info, warn};
 use unfocol::{
-    Config, DEFAULT_THEME, Message, SettingsLoadingOutcome, Unfocol, get_or_create_config_dir, load_settings, ensure_themes_toml_exists,
-    load_themes, sanitize_selected_theme, write_atomic,
+    Config, DEFAULT_THEME, Message, SettingsLoadingOutcome, Unfocol, OmarchyWatcher, get_or_create_config_dir, load_settings, ensure_themes_toml_exists,
+    load_themes, sanitize_selected_theme, write_atomic, omarchy_current,
 };
 
 fn main() -> eframe::Result {
@@ -73,6 +73,27 @@ fn main() -> eframe::Result {
     eframe::run_native(
         "Unfocol",
         options,
-        Box::new(|_cc| Ok(Box::new(Unfocol::new(config, config_dir, messages)))),
+        Box::new(|cc| {
+            let watcher = omarchy_current().and_then(|path| {
+                match OmarchyWatcher::new(&path, cc.egui_ctx.clone()) {
+                    Ok(w) => Some(w),
+                    Err(e) if is_not_found(&e) => None,   // no Omarchy — expected
+                    Err(e) => {
+                        messages.push(Message { severity: unfocol::Severity::Warning, message: format!("Failed to set up watcher for colors.toml, Omarchy theme won't auto update: {e}")});
+                        None
+                }
+            }
+        });
+
+        Ok(Box::new(Unfocol::new(config, config_dir, messages, watcher)))
+        })
     )
+}
+
+fn is_not_found(e: &notify::Error) -> bool {
+    match &e.kind {
+        notify::ErrorKind::PathNotFound => true,
+        notify::ErrorKind::Io(io) => io.kind() == std::io::ErrorKind::NotFound,
+        _ => false,
+    }
 }

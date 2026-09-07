@@ -1,13 +1,64 @@
-use std::path::PathBuf;
+use std::path::{PathBuf, Path};
 use std::time::{Duration, Instant};
+use notify::{RecommendedWatcher, RecursiveMode, Watcher};
+use std::sync::mpsc::{channel, Receiver};
 
 use eframe::egui;
 
 use crate::Timer;
 use crate::color::Color;
-use crate::config::Config;
+use crate::config::{Config, omarchy_colors_toml, omarchy_theme};
 use crate::timer::SessionState;
 use crate::{Message, Theme};
+
+const DEBOUNCE: Duration = Duration::from_millis(150);
+
+pub struct OmarchyWatcher {
+    // Held only so its Drop doesn't run — dropping it stops the watch.
+    _watcher: RecommendedWatcher,
+    rx: Receiver<()>,
+    pending: Option<Instant>,
+
+}
+
+impl OmarchyWatcher {
+    pub fn new(path: &Path, ctx: egui::Context) -> Result<Self, notify::Error> {
+        let (tx, rx) = channel();
+
+        let mut watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
+            if res.is_ok() && tx.send(()).is_ok() {
+                ctx.request_repaint();
+            }
+        })?;
+
+        watcher.watch(path, RecursiveMode::Recursive)?;
+
+        Ok(Self { _watcher: watcher, rx, pending: None })
+    }
+
+    /// True when a burst of events has settled and the theme should be rebuilt.
+    pub fn should_reload(&mut self) -> bool {
+        let mut saw_event = false;
+        while self.rx.try_recv().is_ok() {
+            saw_event = true;
+        }
+        if saw_event {
+            self.pending = Some(Instant::now());
+        }
+
+        match self.pending {
+            Some(started) if started.elapsed() >= DEBOUNCE => {
+                self.pending = None;
+                true
+            }
+            _ => false,
+        }
+    }
+
+    pub fn is_pending(&self) -> bool {
+        self.pending.is_some()
+    }
+}
 
 pub struct Unfocol<F: Fn() -> Instant> {
     pub timer: Timer<F>,
@@ -17,10 +68,11 @@ pub struct Unfocol<F: Fn() -> Instant> {
     pub config: Config,
     pub config_dir: PathBuf,
     pub messages: Vec<Message>,
+    pub omarchy_watcher: Option<OmarchyWatcher>,
 }
 
 impl Unfocol<fn() -> Instant> {
-    pub fn new(config: Config, config_dir: PathBuf, messages: Vec<Message>) -> Self {
+    pub fn new(config: Config, config_dir: PathBuf, messages: Vec<Message>, omarchy_watcher: Option<OmarchyWatcher>) -> Self {
         Self {
             timer: Timer::new(config.settings.focus_time),
             settings_t: 0.0,
@@ -29,6 +81,7 @@ impl Unfocol<fn() -> Instant> {
             config,
             config_dir,
             messages,
+            omarchy_watcher,
         }
     }
 
@@ -95,6 +148,29 @@ impl eframe::App for Unfocol<fn() -> Instant> {
         }
 
         self.timer.update_state();
+        // Omarchy theme reload: decide first, so the watcher borrow is released
+        // before anything else on `self` is mutated.
+        let reload = match &mut self.omarchy_watcher {
+            Some(watcher) => {
+                let reload = watcher.should_reload();
+                if !reload && watcher.is_pending() {
+                    ui.ctx().request_repaint_after(DEBOUNCE);
+                }
+                reload
+            }
+            None => false,
+        };
+
+        if reload && let Some(path) = omarchy_colors_toml() {
+            match omarchy_theme(path) {
+                Ok(theme) => {
+                    self.config.themes.insert("Omarchy".to_string(), theme);
+                }
+                Err(e) => {
+                    self.messages.push(Message::from_omarchy_theme_error(e));
+                }
+            }
+        }
 
         self.render_settings(ui.ctx());
         self.render_clock(ui.ctx());
@@ -107,7 +183,7 @@ impl eframe::App for Unfocol<fn() -> Instant> {
         let nanos = self.timer.remaining().subsec_nanos();
         let until_repaint = if nanos == 0 {
             Duration::from_secs(1)
-        } else {
+       } else {
             Duration::from_nanos(nanos as u64)
         };
         if matches!(self.timer.state, SessionState::Running { .. }) {
